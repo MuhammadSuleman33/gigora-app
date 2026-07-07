@@ -13,3 +13,9 @@ app.add_middleware(
 @app.get("/")
 def root():
     return {"message": "Gigora API is running"}
+
+@app.get("/api/health")
+def health():
+    return {
+        "status": "ok"
+    }

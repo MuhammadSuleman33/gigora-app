@@ -1,38 +1,256 @@
-.App {
-  text-align: center;
+/* Reset */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
 
-.App-logo {
-  height: 40vmin;
-  pointer-events: none;
+/* Body */
+body {
+  font-family: Arial, Helvetica, sans-serif;
+  background: #ffffff;
+  color: #111827;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
-  }
-}
-
-.App-header {
-  background-color: #282c34;
-  min-height: 100vh;
+/* Navbar */
+.navbar {
   display: flex;
-  flex-direction: column;
+  justify-content: space-between;
   align-items: center;
+  padding: 20px 80px;
+  background: #1A56DB;
+}
+
+/* Logo */
+.logo h2 {
+  color: white;
+  font-size: 28px;
+}
+
+/* Links */
+
+
+.nav-links {
+  display: flex;
+  gap: 30px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.nav-links li {
+  cursor: pointer;
+}
+
+/* Button */
+.navbar-button{
+  /* background: white; */
+  color: #1A56DB;
+  border: none;
+  padding: 12px 22px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: bold;
+}
+
+
+.btn-primary {
+  background: white;
+  color: #1A56DB;
+  border: none;
+  padding: 12px 22px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.btn-primary:hover {
+  background: #EFF6FF;
+}
+
+
+/* Hero Section */
+
+.hero {
+  text-align: center;
+  padding: 100px 20px;
+  background: #EFF6FF;
+}
+
+.hero h1 {
+  font-size: 56px;
+  color: #1A56DB;
+  margin-bottom: 20px;
+}
+
+.hero p {
+  max-width: 700px;
+  margin: auto;
+  font-size: 20px;
+  color: #6B7280;
+  line-height: 1.6;
+}
+
+.hero-buttons {
+  margin-top: 40px;
+  display: flex;
   justify-content: center;
-  font-size: calc(10px + 2vmin);
+  gap: 20px;
+}
+
+.btn-secondary {
+  background: transparent;
+  color: #1A56DB;
+  border: 2px solid #1A56DB;
+  padding: 12px 22px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.btn-secondary:hover {
+  background: #1A56DB;
   color: white;
 }
 
-.App-link {
-  color: #61dafb;
+
+
+/* Problems Section */
+
+.problems {
+  padding: 80px 20px;
+  text-align: center;
 }
 
-@keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+.problems h2 {
+  font-size: 40px;
+  color: #1A56DB;
+  margin-bottom: 15px;
+}
+
+.section-text {
+  color: #6B7280;
+  margin-bottom: 50px;
+  font-size: 18px;
+}
+
+.problem-cards {
+  display: flex;
+  justify-content: center;
+  gap: 25px;
+  flex-wrap: wrap;
+}
+
+.card {
+  background: #EFF6FF;
+  width: 300px;
+  padding: 30px;
+  border-radius: 12px;
+  transition: 0.3s;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+}
+
+.card:hover {
+  transform: translateY(-8px);
+}
+
+.card h3 {
+  color: #1A56DB;
+  margin-bottom: 15px;
+}
+
+.card p {
+  color: #6B7280;
+  line-height: 1.6;
+}
+
+
+/* Solutions Section */
+
+.solutions {
+  padding: 80px 20px;
+  background: #1A56DB;
+  text-align: center;
+}
+
+.solutions h2 {
+  color: white;
+  font-size: 40px;
+  margin-bottom: 15px;
+}
+
+.solutions .section-text {
+  color: #dbeafe;
+  margin-bottom: 50px;
+  font-size: 18px;
+}
+
+.solution-cards {
+  display: flex;
+  justify-content: center;
+  gap: 25px;
+  flex-wrap: wrap;
+}
+
+.solutions .card {
+  background: white;
+  width: 300px;
+  padding: 30px;
+  border-radius: 12px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+  transition: 0.3s;
+}
+
+.solutions .card:hover {
+  transform: translateY(-8px);
+}
+
+.solutions .card h3 {
+  color: #1A56DB;
+  margin-bottom: 15px;
+}
+
+.solutions .card p {
+  color: #6B7280;
+  line-height: 1.6;
+}
+
+
+/* Footer */
+
+.footer {
+  background: #111827;
+  color: white;
+  padding: 50px 20px;
+}
+
+.footer-container {
+  max-width: 1000px;
+  margin: auto;
+  text-align: center;
+}
+
+.footer h2 {
+  font-size: 32px;
+  margin-bottom: 15px;
+}
+
+.footer p {
+  color: #d1d5db;
+  line-height: 1.8;
+}
+
+.footer hr {
+  margin: 30px 0;
+  border: none;
+  height: 1px;
+  background: #374151;
+}
+
+.copyright {
+  color: #9ca3af;
+  font-size: 15px;
 }
