@@ -22,7 +22,7 @@ body {
 }
 
 /* Logo */
-.logo h2 {
+.navbar h2 {
   color: white;
   font-size: 28px;
 }
@@ -32,22 +32,86 @@ body {
 
 .nav-links {
   display: flex;
-  gap: 30px;
+  gap: 1000px;
+  color: white;
+  font-size: 18px;
+  font-weight: bold;
   list-style: none;
   margin: 0;
   padding: 0;
 }
 
-.nav-links li {
-  cursor: pointer;
+
+.auth-buttons {
+  display: flex;
+  gap: 1px;
 }
 
+
+.get-started-btn {
+  padding: 12px 28px;
+  border: 2px solid #1A56DB;
+  background: transparent;
+  color: white;
+  border: 20px;
+  border-color: none;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: 0.3s;
+}
+
+.get-started-btn:hover {
+  color: white;
+  background: #1E3A5F;
+}
+
+
+
+.login-btn {
+  padding: 12px 28px;
+  border: 2px solid #1A56DB;
+  background: transparent;
+  color: white;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: 0.3s;
+}
+
+.login-btn:hover {
+  background: #1E3A5F;
+}
+
+.signup-btn {
+  padding: 12px 28px;
+  border: none;
+  background: #1A56DB;
+  color: white;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: 0.3s;
+}
+
+.signup-btn:hover {
+  background: #1E3A5F;
+}
+
+
+
+
+
+
+
+
+/* Hero Section */
 /* Button */
 .navbar-button{
   /* background: white; */
   color: #1A56DB;
   border: none;
-  padding: 12px 22px;
+  padding: 12px 42px;
   border-radius: 8px;
   cursor: pointer;
   font-size: 16px;
@@ -70,8 +134,6 @@ body {
   background: #EFF6FF;
 }
 
-
-/* Hero Section */
 
 .hero {
   text-align: center;
@@ -253,4 +315,123 @@ body {
 .copyright {
   color: #9ca3af;
   font-size: 15px;
+}
+
+
+
+/*  Authentication Page */
+.auth-page {
+  display: flex;
+  min-height: 100vh;
+}
+
+.auth-left {
+  flex: 1;
+  background: linear-gradient(135deg, #1a56db, #1e3a5f);
+  color: white;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 800px 280px;
+}
+
+.auth-left h1 {
+  font-size: 3rem;
+  margin-bottom: 20px;
+}
+
+.auth-left h2 {
+  font-size: 2rem;
+  margin-bottom: 20px;
+}
+
+.auth-left p {
+  max-width: 500px;
+  line-height: 1.8;
+}
+
+.auth-right {
+  flex: 1;
+  background: #f8fafc;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 50px;
+}
+
+.auth-card {
+  width: 420px;
+  background: white;
+  padding: 50px;
+  border-radius: 20px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.1);
+}
+
+.auth-card h2 {
+  color: #1e3a5f;
+  margin-bottom: 10px;
+}
+
+.auth-card p {
+  color: #6b7280;
+}
+
+.auth-card input {
+  width: 100%;
+  padding: 16px;
+  margin-top: 20px;
+  border: 1px solid #ddd;
+  border-radius: 12px;
+  font-size: 16px;
+}
+
+.primary-btn {
+  width: 100%;
+  margin-top: 25px;
+  padding: 16px;
+  background: #1a56db;
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 17px;
+  cursor: pointer;
+}
+
+.primary-btn:disabled,
+.google-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.google-btn {
+  width: 100%;
+  margin-top: 15px;
+  padding: 16px;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.bottom-text {
+  text-align: center;
+  margin-top: 30px;
+}
+
+.bottom-text a {
+  color: #1a56db;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.auth-error {
+  margin-top: 20px;
+  color: #dc2626;
+  font-weight: 600;
+}
+
+.auth-success {
+  margin-top: 20px;
+  color: #16a34a;
+  font-weight: 600;
 }
