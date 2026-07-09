@@ -28,9 +28,9 @@ function Login() {
       const response = await api.post("/api/auth/login", formData);
 
       localStorage.setItem("gigora_access_token", response.data.access_token);
-      localStorage.setItem("gigora_user", response.data.user);
+      localStorage.setItem("gigora_user", JSON.stringify(response.data.user));
 
-      navigate("/");
+      navigate("/dashboard");
     } catch (err) {
       setError(err.response?.data?.detail || "Unable to login. Please try again.");
     } finally {

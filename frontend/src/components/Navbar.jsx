@@ -13,17 +13,16 @@ function Navbar() {
       </ul>
 
       {/* Authentication Buttons */}
-      <Link to="/Home">
+      
+      <div className="auth-buttons">
+        <Link to="/Home">
           <button className="get-started-btn">
             Get Started
           </button>
         </Link>
-      
-      
-      
-      
-      
-      <div className="auth-buttons">
+
+
+
         <Link to="/login">
           <button className="login-btn">
             Login
