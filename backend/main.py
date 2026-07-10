@@ -1,4 +1,6 @@
-from fastapi import FastAPI
+from fastapi import FastAPI,HTTPException
+from pydantic import BaseModel
+from ai_service import analyze_profile
 from routes.auth import router as auth_router
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -7,7 +9,6 @@ from ai_service import (
     optimize_gig,
     analyze_profile
 )
-
 
 app = FastAPI()
 class ProposalRequest(BaseModel):
@@ -44,15 +45,17 @@ def seo(data: GigRequest):
     }
 
 
-@app.post("/api/profile")
-def profile(data: ProfileRequest):
-    result = analyze_profile(
-        data.profile_text
-    )
 
-    return {
-        "analysis": result
-    }
+@app.post("/api/profile")
+def profile_analyzer(data: ProfileRequest):
+    try:
+        return analyze_profile(data.profile_text)
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
+        )
 
 
 app.add_middleware(

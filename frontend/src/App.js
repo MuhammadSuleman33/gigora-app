@@ -1,4 +1,5 @@
 import "./App.css";
+import ProfileAnalyzer from "./pages/ProfileAnalyzer";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
@@ -13,6 +14,8 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/profile-analyzer" element={<ProfileAnalyzer />}
+/>
       </Routes>
     </BrowserRouter>
   );

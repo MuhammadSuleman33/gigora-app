@@ -58,7 +58,9 @@ function DashboardHome() {
       {error && <p className="auth-error">{error}</p>}
 
       <div className="cards">
-        <div className="card">
+        <div className="card"   
+        onClick={() => navigate("/profile-analyzer")}
+        >
           <h3>Profile Analyzer</h3>
           <p>Analyze your freelancer profile.</p>
         </div>
