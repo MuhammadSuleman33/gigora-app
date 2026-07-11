@@ -1,69 +1,81 @@
-import anthropic
+import google.generativeai as genai
 import os
 import json
 from dotenv import load_dotenv
 
 load_dotenv()
 
-client = anthropic.Anthropic(
-    api_key=os.getenv("ANTHROPIC_API_KEY")
+genai.configure(
+    api_key=os.getenv("GEMINI_API_KEY")
+)
+
+model = genai.GenerativeModel(
+    "gemini-3.5-flash"
 )
 
 
 def analyze_profile(profile_text: str):
-    try:
-        message = client.messages.create(
-            model="claude-sonnet-4-6",
-            max_tokens=1000,
-            messages=[
-                {
-                    "role": "user",
-                    "content": f"""
-Analyze this freelancer profile.
+    prompt = f"""
+    Analyze this freelancer profile and return JSON only.
 
-Profile:
-{profile_text}
+    Profile:
+    {profile_text}
 
-Return ONLY valid JSON in this format:
+    Return exactly:
 
-{{
-    "score": 7,
-    "strengths": [
-        "strength 1",
-        "strength 2"
-    ],
-    "weaknesses": [
-        "weakness 1",
-        "weakness 2"
-    ],
-    "suggestions": [
-        "suggestion 1",
-        "suggestion 2"
-    ]
-}}
-"""
-                }
-            ]
-        )
+    {{
+      "score": 7,
+      "strengths": [],
+      "weaknesses": [],
+      "suggestions": []
+    }}
+    """
 
-        response = message.content[0].text
+    response = model.generate_content(prompt)
 
-        return json.loads(response)
+    text = (
+        response.text
+        .replace("```json", "")
+        .replace("```", "")
+        .strip()
+    )
 
-    except Exception as e:
-        return {
-            "score": 0,
-            "strengths": [],
-            "weaknesses": [],
-            "suggestions": [],
-            "error": str(e)
-        }
-    
+    return json.loads(text)
+
 
 def generate_proposal(job_post: str):
-    pass
+    prompt = f"""
+    You are an expert freelancer proposal writer.
+
+    Write a professional proposal for:
+
+    {job_post}
+
+    Keep it under 200 words.
+    """
+
+    response = model.generate_content(prompt)
+
+    return response.text
+
 
 def optimize_gig(title: str, description: str):
-    pass
+    prompt = f"""
+    Optimize this Fiverr gig.
 
-# 
+    Title:
+    {title}
+
+    Description:
+    {description}
+
+    Return:
+
+    Optimized Title:
+    Optimized Description:
+    SEO Keywords:
+    """
+
+    response = model.generate_content(prompt)
+
+    return response.text

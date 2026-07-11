@@ -1,9 +1,9 @@
 from fastapi import FastAPI,HTTPException
+from database import supabase
+from database import supabase_admin
 from pydantic import BaseModel
-from ai_service import analyze_profile
 from routes.auth import router as auth_router
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
 from ai_service import (
     generate_proposal,
     optimize_gig,
@@ -24,26 +24,46 @@ class ProfileRequest(BaseModel):
     profile_text: str
 
 
+
 @app.post("/api/proposal")
 def create_proposal(data: ProposalRequest):
-    result = generate_proposal(data.job_post)
+    try:
+        proposal = generate_proposal(data.job_post)
 
-    return {
-        "proposal": result
-    }
+        response = supabase_admin.table(
+            "proposals"
+        ).insert({
+            "job_post": data.job_post,
+            "generated_proposal": proposal
+        }).execute()
 
+        return {
+            "proposal": proposal
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
+        )
 
 @app.post("/api/seo")
 def seo(data: GigRequest):
-    result = optimize_gig(
-        data.title,
-        data.description
-    )
+    try:
+        result = optimize_gig(
+            data.title,
+            data.description
+        )
 
-    return {
-        "optimized_gig": result
-    }
+        return {
+            "optimized_gig": result
+        }
 
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
+        )
 
 
 @app.post("/api/profile")
