@@ -471,6 +471,10 @@ body {
   color:white;
   margin-bottom: 40px;
 }
+.sidebar p {
+  color:white;
+  margin-bottom: 40px;
+}
 
 .sidebar ul {
   list-style: none;
@@ -520,47 +524,329 @@ body {
 
 
 
-/* Profile Analyzer Page */
+/* Proposal Generator Page */
 
-.profile-container {
-  padding: 30px;
+.proposal-page {
+  min-height: 100vh;
+  background: #f4f7fc;
+  padding: 50px 20px;
+  display: flex;
+  justify-content: center;
 }
 
-textarea {
+.proposal-card {
   width: 100%;
-  height: 200px;
-  padding: 15px;
-  border-radius: 10px;
-  border: 1px solid #ddd;
-  margin-top: 20px;
+  max-width: 1000px;
+  background: white;
+  padding: 40px;
+  border-radius: 25px;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.08);
 }
 
-button {
+.proposal-card h1 {
+  text-align: center;
+  color: #1e293b;
+  margin-bottom: 10px;
+}
+
+.proposal-card p {
+  text-align: center;
+  color: #64748b;
+  margin-bottom: 30px;
+}
+
+.proposal-card textarea {
+  width: 100%;
+  min-height: 220px;
+  padding: 18px;
+  border: 1px solid #dbe1ea;
+  border-radius: 15px;
+  resize: vertical;
+  font-size: 16px;
+  box-sizing: border-box;
+  outline: none;
+  margin-bottom: 20px;
+}
+
+.proposal-card textarea:focus {
+  border-color: #4f46e5;
+}
+
+.proposal-card button {
+  width: 100%;
+  padding: 16px;
+  border: none;
+  background: #4f46e5;
+  color: white;
+  border-radius: 14px;
+  font-size: 17px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.proposal-card button:hover {
+  background: #4338ca;
+}
+
+.proposal-card button:disabled {
+  background: #94a3b8;
+  cursor: not-allowed;
+}
+
+.proposal-error {
   margin-top: 20px;
-  padding: 12px 25px;
-  background: #1A56DB;
+  padding: 15px;
+  background: #fee2e2;
+  color: #b91c1c;
+  border-radius: 12px;
+}
+
+.proposal-result {
+  margin-top: 35px;
+}
+
+.proposal-result h2 {
+  margin-bottom: 15px;
+  color: #1e293b;
+}
+
+.copy-btn {
+  margin-top: 15px;
+  background: #10b981 !important;
+}
+
+.copy-btn:hover {
+  background: #059669 !important;
+}
+
+
+/* Gig Seo  */
+.seo-page {
+  min-height: 100vh;
+  background: #f4f7fc;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 40px;
+}
+
+.seo-card {
+  width: 100%;
+  max-width: 900px;
+  background: #ffffff;
+  padding: 40px;
+  border-radius: 20px;
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.08);
+}
+
+.seo-card h1 {
+  color: #1e293b;
+  margin-bottom: 10px;
+  text-align: center;
+}
+
+.seo-card p {
+  color: #64748b;
+  text-align: center;
+  margin-bottom: 35px;
+}
+
+.form-group {
+  margin-bottom: 25px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 10px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.form-group input,
+.form-group textarea {
+  width: 100%;
+  padding: 15px;
+  border: 1px solid #dbe1ea;
+  border-radius: 12px;
+  font-size: 16px;
+  outline: none;
+  transition: 0.3s;
+  box-sizing: border-box;
+}
+
+.form-group input:focus,
+.form-group textarea:focus {
+  border-color: #4f46e5;
+}
+
+.form-group textarea {
+  min-height: 180px;
+  resize: vertical;
+}
+
+.seo-card button {
+  width: 100%;
+  padding: 15px;
+  background: #4f46e5;
   color: white;
   border: none;
-  border-radius: 8px;
+  border-radius: 12px;
+  font-size: 17px;
+  font-weight: 600;
   cursor: pointer;
+  transition: 0.3s;
+}
+
+.seo-card button:hover {
+  background: #4338ca;
+}
+
+.seo-card button:disabled {
+  background: #94a3b8;
+  cursor: not-allowed;
 }
 
 .result-box {
-  margin-top: 30px;
-}
-
-.card,
-.score-card {
-  background: #EFF6FF;
-  padding: 20px;
+  margin-top: 35px;
+  background: #f8fafc;
+  border-left: 5px solid #4f46e5;
+  padding: 25px;
   border-radius: 12px;
+}
+
+.result-box h3 {
+  margin-bottom: 15px;
+  color: #1e293b;
+}
+
+.result-box pre {
+  white-space: pre-wrap;
+  font-family: inherit;
+  line-height: 1.7;
+  color: #334155;
+}
+
+
+/* Profile Analyzer Page */ 
+.analyzer-page {
+  min-height: 100vh;
+  background: #f4f7fc;
+  padding: 50px 20px;
+  display: flex;
+  justify-content: center;
+}
+
+.analyzer-card {
+  width: 100%;
+  max-width: 1000px;
+  background: #ffffff;
+  padding: 40px;
+  border-radius: 25px;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.08);
+}
+
+.analyzer-card h1 {
+  text-align: center;
+  color: #1e293b;
+  margin-bottom: 10px;
+}
+
+.analyzer-card p {
+  text-align: center;
+  color: #64748b;
+  margin-bottom: 30px;
+}
+
+.analyzer-card textarea {
+  width: 100%;
+  min-height: 220px;
+  padding: 18px;
+  border: 1px solid #dbe1ea;
+  border-radius: 15px;
+  resize: vertical;
+  font-size: 16px;
+  box-sizing: border-box;
+  outline: none;
+  margin-bottom: 20px;
+}
+
+.analyzer-card textarea:focus {
+  border-color: #4f46e5;
+}
+
+.analyzer-card button {
+  width: 100%;
+  padding: 16px;
+  border: none;
+  background: #4f46e5;
+  color: white;
+  border-radius: 14px;
+  font-size: 17px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.analyzer-card button:hover {
+  background: #4338ca;
+}
+
+.analyzer-card button:disabled {
+  background: #94a3b8;
+  cursor: not-allowed;
+}
+
+.error-box {
   margin-top: 20px;
+  padding: 15px;
+  background: #fee2e2;
+  color: #b91c1c;
+  border-radius: 12px;
 }
 
-.error {
-  color: red;
+.results {
+  margin-top: 40px;
 }
 
+.score-card {
+  background: linear-gradient(
+    135deg,
+    #4f46e5,
+    #7c3aed
+  );
+  color: white;
+  text-align: center;
+  padding: 35px;
+  border-radius: 20px;
+  margin-bottom: 25px;
+}
 
+.score-card h1 {
+  font-size: 60px;
+  margin-top: 10px;
+}
 
+.result-card {
+  background: #f8fafc;
+  padding: 25px;
+  border-radius: 16px;
+  margin-bottom: 20px;
+  border-left: 6px solid #4f46e5;
+}
+
+.result-card h3 {
+  margin-bottom: 15px;
+  color: #1e293b;
+}
+
+.result-card ul {
+  padding-left: 20px;
+}
+
+.result-card li {
+  margin-bottom: 10px;
+  color: #475569;
+  line-height: 1.6;
+}
 

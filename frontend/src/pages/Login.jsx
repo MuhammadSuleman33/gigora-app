@@ -2,8 +2,11 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import api from "../services/api";
 import "../App.css";
+import { useContext } from "react";
+import { AuthContext } from "../context/AuthContext";
 
 function Login() {
+  const { setUser } = useContext(AuthContext);
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     email: "",
@@ -27,10 +30,19 @@ function Login() {
     try {
       const response = await api.post("/api/auth/login", formData);
 
-      localStorage.setItem("gigora_access_token", response.data.access_token);
-      localStorage.setItem("gigora_user", JSON.stringify(response.data.user));
+      localStorage.setItem(
+  "gigora_access_token",
+  response.data.access_token
+);
 
-      navigate("/dashboard");
+localStorage.setItem(
+  "gigora_user",
+  JSON.stringify(response.data.user)
+);
+
+setUser(response.data.user);
+
+navigate("/dashboard");
     } catch (err) {
       setError(err.response?.data?.detail || "Unable to login. Please try again.");
     } finally {

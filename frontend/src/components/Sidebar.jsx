@@ -1,9 +1,19 @@
 import { Link } from "react-router-dom";
+import { useContext } from "react";
+import { AuthContext } from "../context/AuthContext";
 
 function Sidebar() {
+  const { user } = useContext(AuthContext);
   return (
     <div className="sidebar">
-      <h2>Gigora</h2>
+  <h2>Gigora</h2>
+
+  {user && (
+    <p className="user-name">
+      Welcome, {user.name}
+    </p>
+  )}
+
 
       <ul>
         <li>

@@ -34,7 +34,9 @@ function ProfileAnalyzer() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.detail || "Something went wrong.");
+        throw new Error(
+          data.detail || "Something went wrong."
+        );
       }
 
       setResult(data);
@@ -46,64 +48,85 @@ function ProfileAnalyzer() {
   };
 
   return (
-    <div className="profile-container">
-      <h1>Profile Analyzer</h1>
+    <div className="analyzer-page">
+      <div className="analyzer-card">
+        <h1>AI Profile Analyzer</h1>
+        <p>
+          Analyze your Fiverr or Upwork profile and
+          get AI-powered recommendations.
+        </p>
 
-      <textarea
-        placeholder="Paste your Fiverr or Upwork profile..."
-        value={profileText}
-        onChange={(e) => setProfileText(e.target.value)}
-      />
+        <textarea
+          placeholder="Paste your Fiverr or Upwork profile here..."
+          value={profileText}
+          onChange={(e) =>
+            setProfileText(e.target.value)
+          }
+        />
 
-      <button onClick={analyzeProfile}>
-        Analyze Profile
-      </button>
+        <button
+          onClick={analyzeProfile}
+          disabled={loading}
+        >
+          {loading
+            ? "Analyzing..."
+            : "Analyze Profile"}
+        </button>
 
-      {loading && (
-        <div className="loading">
-          Analyzing profile...
-        </div>
-      )}
-
-      {error && (
-        <p className="error">{error}</p>
-      )}
-
-      {result && (
-        <div className="result-box">
-          <div className="score-card">
-            <h2>Score</h2>
-            <h1>{result.score}/10</h1>
+        {error && (
+          <div className="error-box">
+            {error}
           </div>
+        )}
 
-          <div className="card">
-            <h3>Strengths</h3>
-            <ul>
-              {result.strengths?.map((item, index) => (
-                <li key={index}>{item}</li>
-              ))}
-            </ul>
-          </div>
+        {result && (
+          <div className="results">
+            <div className="score-card">
+              <h3>Profile Score</h3>
+              <h1>{result.score}/10</h1>
+            </div>
 
-          <div className="card">
-            <h3>Weaknesses</h3>
-            <ul>
-              {result.weaknesses?.map((item, index) => (
-                <li key={index}>{item}</li>
-              ))}
-            </ul>
-          </div>
+            <div className="result-card">
+              <h3>Strengths</h3>
+              <ul>
+                {result.strengths?.map(
+                  (item, index) => (
+                    <li key={index}>
+                      {item}
+                    </li>
+                  )
+                )}
+              </ul>
+            </div>
 
-          <div className="card">
-            <h3>Suggestions</h3>
-            <ul>
-              {result.suggestions?.map((item, index) => (
-                <li key={index}>{item}</li>
-              ))}
-            </ul>
+            <div className="result-card">
+              <h3>Weaknesses</h3>
+              <ul>
+                {result.weaknesses?.map(
+                  (item, index) => (
+                    <li key={index}>
+                      {item}
+                    </li>
+                  )
+                )}
+              </ul>
+            </div>
+
+            <div className="result-card">
+              <h3>Suggestions</h3>
+              <ul>
+                {result.suggestions?.map(
+                  (item, index) => (
+                    <li key={index}>
+                      {item}
+                    </li>
+                  )
+                )}
+              </ul>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

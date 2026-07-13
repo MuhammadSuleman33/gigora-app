@@ -65,12 +65,12 @@ function DashboardHome() {
           <p>Analyze your freelancer profile.</p>
         </div>
 
-        <div className="card">
+        <div className="card"  onClick={() => navigate("/gig-seo")}>
           <h3>Gig SEO</h3>
           <p>Optimize your gig for better ranking.</p>
         </div>
 
-        <div className="card">
+        <div className="card"  onClick={() => navigate("/proposal-generator")}>
           <h3>Proposal Generator</h3>
           <p>Generate winning proposals instantly.</p>
         </div>
