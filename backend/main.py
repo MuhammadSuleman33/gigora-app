@@ -1,82 +1,28 @@
-from fastapi import FastAPI,HTTPException
-from database import supabase
-from database import supabase_admin
-from pydantic import BaseModel
-from routes.auth import router as auth_router
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from ai_service import (
-    generate_proposal,
-    optimize_gig,
-    analyze_profile
-)
+from fastapi.responses import JSONResponse
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
+from auth import router as auth_router
+from routes.proposal import router as proposal_router
+from routes.seo import router as seo_router
+from routes.profile import router as profile_router
+from routes.history import router as history_router
+from routes.user import router as user_router
+from routes.usage import router as usage_router
+from rate_limiter import limiter
 
 app = FastAPI()
-class ProposalRequest(BaseModel):
-    job_post: str
+app.state.limiter = limiter
+app.add_middleware(SlowAPIMiddleware)
 
 
-class GigRequest(BaseModel):
-    title: str
-    description: str
-
-
-class ProfileRequest(BaseModel):
-    profile_text: str
-
-
-
-@app.post("/api/proposal")
-def create_proposal(data: ProposalRequest):
-    try:
-        proposal = generate_proposal(data.job_post)
-
-        response = supabase_admin.table(
-            "proposals"
-        ).insert({
-            "job_post": data.job_post,
-            "generated_proposal": proposal
-        }).execute()
-
-        return {
-            "proposal": proposal
-        }
-
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=str(e)
-        )
-
-@app.post("/api/seo")
-def seo(data: GigRequest):
-    try:
-        result = optimize_gig(
-            data.title,
-            data.description
-        )
-
-        return {
-            "optimized_gig": result
-        }
-
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=str(e)
-        )
-
-
-@app.post("/api/profile")
-def profile_analyzer(data: ProfileRequest):
-    try:
-        return analyze_profile(data.profile_text)
-
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=str(e)
-        )
-
+@app.exception_handler(RateLimitExceeded)
+async def rate_limit_exceeded_handler(request, exc):
+    return JSONResponse(
+        status_code=429,
+        content={"detail": "Too many requests. Please wait a minute and try again."},
+    )
 
 app.add_middleware(
     CORSMiddleware,
@@ -90,3 +36,39 @@ app.add_middleware(
 )
 
 app.include_router(auth_router)
+
+app.include_router(
+    proposal_router,
+    prefix="/api/proposal",
+    tags=["Proposal"]
+)
+
+app.include_router(
+    seo_router,
+    prefix="/api/seo",
+    tags=["SEO"]
+)
+
+app.include_router(
+    profile_router,
+    prefix="/api/profile",
+    tags=["Profile"]
+)
+
+app.include_router(
+    history_router,
+    prefix="/api/history",
+    tags=["History"]
+)
+
+app.include_router(
+    user_router,
+    prefix="/api"
+)
+
+app.include_router(
+    usage_router,
+    prefix="/api/usage",
+    tags=["Usage"]
+)
+

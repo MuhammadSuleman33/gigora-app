@@ -1,15 +1,17 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { User, Mail, Lock, ArrowRight } from "lucide-react";
 import api from "../services/api";
-import "../App.css";
 
 function Signup() {
   const navigate = useNavigate();
+
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     password: "",
   });
+
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
@@ -23,81 +25,189 @@ function Signup() {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+
     setError("");
     setSuccess("");
     setLoading(true);
 
     try {
-      const response = await api.post("/api/auth/signup", formData);
-      setSuccess(response.data.message || "Account created successfully.");
+      const response = await api.post(
+        "/api/auth/signup",
+        formData
+      );
+
+      setSuccess(
+        response.data.message ||
+          "Account created successfully."
+      );
 
       setTimeout(() => {
         navigate("/login");
       }, 1000);
+
     } catch (err) {
-      setError(err.response?.data?.detail || "Unable to create account. Please try again.");
+      setError(
+        err.response?.data?.detail ||
+          "Unable to create account. Please try again."
+      );
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="auth-page">
-      {/* <div className="auth-left">
-        <h1>GIGORA</h1>
-        <h2>Start Winning More Clients</h2>
-        <p>
-          Create your account and unlock AI tools built for freelancers.
-        </p>
-      </div> */}
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center px-6 py-10">
 
-      <div className="auth-right">
-        <form className="auth-card" onSubmit={handleSubmit}>
-          <h2>Create Account</h2>
-          <p>Join Gigora today.</p>
+      <div className="w-full max-w-md rounded-3xl bg-white p-8 shadow-xl">
 
-          {error && <p className="auth-error">{error}</p>}
-          {success && <p className="auth-success">{success}</p>}
+        {/* Logo */}
 
-          <input
-            type="text"
-            name="name"
-            placeholder="Full Name"
-            value={formData.name}
-            onChange={handleChange}
-            required
-          />
-          <input
-            type="email"
-            name="email"
-            placeholder="Email Address"
-            value={formData.email}
-            onChange={handleChange}
-            required
-          />
-          <input
-            type="password"
-            name="password"
-            placeholder="Password"
-            value={formData.password}
-            onChange={handleChange}
-            required
-          />
+        <div className="mb-8 text-center">
 
-          <button className="primary-btn" type="submit" disabled={loading}>
-            {loading ? "Creating account..." : "Sign Up"}
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-[#EFF6FF]">
+
+            <span className="text-2xl font-bold text-[#1A56DB]">
+              G
+            </span>
+
+          </div>
+
+          <h1 className="mt-6 text-3xl font-bold text-[#1E3A5F]">
+            Create Account
+          </h1>
+
+          <p className="mt-2 text-[#6B7280]">
+            Join Gigora and start winning more freelance projects.
+          </p>
+
+        </div>
+
+        {error && (
+          <div className="mb-5 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-600">
+            {error}
+          </div>
+        )}
+
+        {success && (
+          <div className="mb-5 rounded-xl border border-green-200 bg-green-50 p-3 text-sm text-[#059669]">
+            {success}
+          </div>
+        )}
+
+        <form
+          onSubmit={handleSubmit}
+          className="space-y-5"
+        >
+
+          {/* Name */}
+
+          <div className="relative">
+
+            <User
+              size={20}
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
+            />
+
+            <input
+              type="text"
+              name="name"
+              placeholder="Full Name"
+              value={formData.name}
+              onChange={handleChange}
+              required
+              className="w-full rounded-xl border border-gray-300 py-3 pl-12 pr-4 outline-none transition focus:border-[#1A56DB] focus:ring-4 focus:ring-blue-100"
+            />
+
+          </div>
+
+          {/* Email */}
+
+          <div className="relative">
+
+            <Mail
+              size={20}
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
+            />
+
+            <input
+              type="email"
+              name="email"
+              placeholder="Email Address"
+              value={formData.email}
+              onChange={handleChange}
+              required
+              className="w-full rounded-xl border border-gray-300 py-3 pl-12 pr-4 outline-none transition focus:border-[#1A56DB] focus:ring-4 focus:ring-blue-100"
+            />
+
+          </div>
+
+          {/* Password */}
+
+          <div className="relative">
+
+            <Lock
+              size={20}
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
+            />
+
+            <input
+              type="password"
+              name="password"
+              placeholder="Password"
+              value={formData.password}
+              onChange={handleChange}
+              required
+              className="w-full rounded-xl border border-gray-300 py-3 pl-12 pr-4 outline-none transition focus:border-[#1A56DB] focus:ring-4 focus:ring-blue-100"
+            />
+
+          </div>
+
+          {/* Sign Up */}
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#1A56DB] py-3 font-semibold text-white transition hover:bg-[#1E3A5F] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+
+            {loading ? (
+              "Creating Account..."
+            ) : (
+              <>
+                Sign Up
+                <ArrowRight size={18} />
+              </>
+            )}
+
           </button>
 
-          <button className="google-btn" type="button" disabled>
+          {/* Google */}
+
+          <button
+            type="button"
+            disabled
+            className="w-full rounded-xl border border-gray-300 bg-white py-3 font-medium text-gray-500"
+          >
             Continue with Google
           </button>
 
-          <p className="bottom-text">
-            Already have an account?
-            <Link to="/login"> Login</Link>
-          </p>
         </form>
+
+        <div className="mt-8 text-center text-sm text-[#6B7280]">
+
+          Already have an account?{" "}
+
+          <Link
+            to="/login"
+            className="font-semibold text-[#1A56DB] hover:text-[#1E3A5F]"
+          >
+            Login
+          </Link>
+
+        </div>
+
       </div>
+
     </div>
   );
 }
