@@ -11,6 +11,7 @@ import {
   CreditCard,
   LogOut,
   UserCircle,
+  Lock,
 } from "lucide-react";
 
 
@@ -32,49 +33,52 @@ function Sidebar({ usage }) {
   };
 
 
-  const percentage =
-    ((usage?.requests_used ?? 0) /
+const percentage =
+usage?.requests_limit === "Unlimited"
+  ? 100
+  : ((usage?.requests_used ?? 0) /
       (usage?.requests_limit ?? 5)) * 100;
 
 
 
   const menuItems = [
+  {
+    name: "Profile Analyzer",
+    path: "/profile-analyzer",
+    icon: <User size={20} />,
+  },
 
-    {
-      name:"Profile Analyzer",
-      path:"/profile-analyzer",
-      icon:<User size={20}/>
-    },
+  {
+    name: "Gig SEO",
+    path: "/gig-seo",
+    icon: <Search size={20} />,
+  },
 
-    {
-      name:"Gig SEO",
-      path:"/gig-seo",
-      icon:<Search size={20}/>
-    },
+  {
+    name: "Proposal Generator",
+    path: "/proposal-generator",
+    icon: <FileText size={20} />,
+  },
 
+  {
+    name: "AI Compare",
+    path: "/proposal-compare",
+    icon: <FileText size={20} />,
+    pro: true,
+  },
 
-    {
-      name:"Proposal Generator",
-      path:"/proposal-generator",
-      icon:<FileText size={20}/>
-    },
+  {
+    name: "History",
+    path: "/history",
+    icon: <History size={20} />,
+  },
 
-
-    {
-      name:"History",
-      path:"/history",
-      icon:<History size={20}/>
-    },
-
-
-    {
-      name:"Usage",
-      path:"/usage",
-      icon:<BarChart3 size={20}/>
-    },
-
-
-  ];
+  {
+    name: "Usage",
+    path: "/usage",
+    icon: <BarChart3 size={20} />,
+  },
+];
 
 
 
@@ -178,15 +182,19 @@ Current Plan
 
 
 <span
-className="
+className={`
 rounded-full
-bg-blue-100
 px-3
 py-1
 text-xs
 font-semibold
-text-[#1A56DB]
-"
+
+${
+  (usage?.plan || "free") === "pro"
+    ? "bg-green-100 text-green-700"
+    : "bg-blue-100 text-[#1A56DB]"
+}
+`}
 >
 
 {(usage?.plan || "free").toUpperCase()}
@@ -214,7 +222,9 @@ AI Usage
 <span className="font-semibold text-[#1E3A5F]">
 
 {usage?.requests_used ?? 0}/
-{usage?.requests_limit ?? 5}
+{usage?.requests_limit === "Unlimited"
+  ? "∞"
+  : usage?.requests_limit ?? 5}
 
 </span>
 
@@ -262,8 +272,11 @@ menuItems.map((item)=>(
 
 
 <Link
-
-to={item.path}
+to={
+  item.pro && user?.plan !== "pro"
+    ? "/pricing"
+    : item.path
+}
 
 className={`
 flex
@@ -294,7 +307,18 @@ location.pathname === item.path
 
 {item.icon}
 
-{item.name}
+<div className="flex items-center justify-between w-full">
+
+  <span>{item.name}</span>
+
+  {item.pro && user?.plan !== "pro" && (
+    <Lock
+      size={16}
+      className="text-yellow-500"
+    />
+  )}
+
+</div>
 
 
 </Link>

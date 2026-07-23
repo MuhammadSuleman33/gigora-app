@@ -11,8 +11,12 @@ from routes.history import router as history_router
 from routes.user import router as user_router
 from routes.usage import router as usage_router
 from rate_limiter import limiter
+from routes import payment
+
+
 
 app = FastAPI()
+app.include_router(payment.router)
 app.state.limiter = limiter
 app.add_middleware(SlowAPIMiddleware)
 
@@ -71,4 +75,5 @@ app.include_router(
     prefix="/api/usage",
     tags=["Usage"]
 )
+
 

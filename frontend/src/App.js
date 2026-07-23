@@ -12,6 +12,9 @@ import Pricing from "./pages/Pricing";
 import Profile from "./pages/Profile";
 import { Toaster } from "react-hot-toast";
 import DashboardLayout from "./layouts/DashboardLayout";
+import ProposalCompare from "./pages/ProposalCompare";
+import PaymentSuccess from "./pages/PaymentSuccess";
+import PaymentCancel from "./pages/PaymentCancel";
 
 
 function App() {
@@ -30,6 +33,9 @@ function App() {
         <Route path="/usage" element={<Usage />} />
         <Route path="/pricing" element={<Pricing />} />
         <Route path="/profile" element={<Profile />} />
+        <Route path="/proposal-compare" element={<ProposalCompare />}/>
+        <Route path="/payment-success" element={<PaymentSuccess />}/>
+        <Route path="/payment-cancel" element={<PaymentCancel />}/>
 
       </Routes>
     </BrowserRouter>

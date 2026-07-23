@@ -1,188 +1,238 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { CheckCircle, Crown, Zap } from "lucide-react";
 import { toast } from "react-hot-toast";
+import api from "../services/api";
 
+function Pricing() {
+  const [loading, setLoading] = useState(false);
 
-function Profile() {
-  const [profile, setProfile] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const handleUpgrade = async () => {
+    try {
+      setLoading(true);
 
-  useEffect(() => {
-    const token = localStorage.getItem("gigora_access_token");
+      const response = await api.post(
+        "/api/payment/create-checkout-session"
+      );
 
-    if (!token) {
-      setLoading(false);
-      return;
-    }
-
-    const fetchProfile = async () => {
-      try {
-        const response = await fetch("http://127.0.0.1:8000/api/auth/me", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        const data = await response.json();
-        const result = data.user || data.data;
-
-        if (!response.ok) {
-          throw new Error(data.detail || "Unable to load profile.");
-        }
-
-        setProfile(result);
-      } catch (err) {
-        toast.error(err.message);
-      } finally {
-        setLoading(false);
+      if (response.data.success) {
+        window.location.href =
+          response.data.checkout_url;
+      } else {
+        toast.error("Unable to create checkout session.");
       }
-    };
+    } catch (err) {
+      console.error(err);
 
-    fetchProfile();
-  }, []);
-
-  const formatDate = (value) => {
-    if (!value) return "-";
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return "-";
-    return date.toLocaleDateString(undefined, {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
+      toast.error(
+        err.response?.data?.detail ||
+          "Something went wrong. Please try again."
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
- return (
-  <div className="min-h-screen bg-slate-50 p-6 lg:p-10">
-    <div className="mx-auto max-w-6xl">
+  return (
+    <div className="min-h-screen bg-slate-50 px-6 py-16">
+      <div className="mx-auto max-w-7xl">
 
-      {/* Header */}
+        {/* Header */}
 
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold text-[#1E3A5F]">
-          User Profile
-        </h1>
+        <div className="text-center">
 
-        <p className="mt-2 text-[#6B7280]">
-          Manage your account information and subscription details.
-        </p>
-      </div>
+          <span className="inline-flex items-center gap-2 rounded-full bg-[#EFF6FF] px-5 py-2 text-sm font-semibold text-[#1A56DB]">
+            <Crown size={16} />
+            Pricing Plans
+          </span>
 
-      {/* Card */}
+          <h1 className="mt-6 text-4xl font-bold text-[#1E3A5F] lg:text-5xl">
+            Choose Your Plan
+          </h1>
 
-      <div className="rounded-3xl bg-white p-8 shadow-lg">
+          <p className="mx-auto mt-4 max-w-2xl text-lg text-[#6B7280]">
+            Upgrade to Gigora Pro and unlock unlimited AI-powered tools
+            to grow your freelance business faster.
+          </p>
 
-        {loading ? (
+        </div>
 
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        {/* Pricing Cards */}
 
-            {[...Array(6)].map((_, index) => (
-              <div
-                key={index}
-                className="h-28 animate-pulse rounded-2xl bg-slate-200"
-              />
-            ))}
+        <div className="mt-16 grid gap-8 lg:grid-cols-2">
 
-          </div>
+          {/* FREE */}
 
-        ) : profile ? (
+          <div className="rounded-3xl border border-slate-200 bg-white p-10 shadow-sm transition hover:-translate-y-2 hover:shadow-xl">
 
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-
-            {/* Name */}
-
-            <div className="rounded-2xl border border-slate-200 p-6 transition hover:shadow-md">
-              <p className="text-sm font-medium text-[#6B7280]">
-                Full Name
-              </p>
-
-              <h2 className="mt-3 text-xl font-bold text-[#1E3A5F]">
-                {profile.name}
-              </h2>
-            </div>
-
-            {/* Email */}
-
-            <div className="rounded-2xl border border-slate-200 p-6 transition hover:shadow-md">
-              <p className="text-sm font-medium text-[#6B7280]">
-                Email Address
-              </p>
-
-              <h2 className="mt-3 break-all text-lg font-semibold text-[#111827]">
-                {profile.email}
-              </h2>
-            </div>
-
-            {/* Plan */}
-
-            <div className="rounded-2xl border border-slate-200 p-6 transition hover:shadow-md">
-              <p className="text-sm font-medium text-[#6B7280]">
-                Current Plan
-              </p>
-
-              <span className="mt-4 inline-flex rounded-full bg-[#EFF6FF] px-4 py-2 text-sm font-semibold text-[#1A56DB]">
-                {profile.plan?.toUpperCase()}
-              </span>
-            </div>
-
-            {/* Join Date */}
-
-            <div className="rounded-2xl border border-slate-200 p-6 transition hover:shadow-md">
-              <p className="text-sm font-medium text-[#6B7280]">
-                Join Date
-              </p>
-
-              <h2 className="mt-3 text-lg font-semibold text-[#111827]">
-                {formatDate(profile.created_at || profile.join_date)}
-              </h2>
-            </div>
-
-            {/* Used */}
-
-            <div className="rounded-2xl border border-slate-200 p-6 transition hover:shadow-md">
-              <p className="text-sm font-medium text-[#6B7280]">
-                Requests Used
-              </p>
-
-              <h2 className="mt-3 text-3xl font-bold text-[#1A56DB]">
-                {profile.requests_used ?? 0}
-              </h2>
-            </div>
-
-            {/* Remaining */}
-
-            <div className="rounded-2xl border border-slate-200 p-6 transition hover:shadow-md">
-              <p className="text-sm font-medium text-[#6B7280]">
-                Remaining Requests
-              </p>
-
-              <h2 className="mt-3 text-3xl font-bold text-[#059669]">
-                {profile.remaining_requests ?? 0}
-              </h2>
-            </div>
-
-          </div>
-
-        ) : (
-
-          <div className="rounded-2xl border border-red-100 bg-red-50 p-10 text-center">
-
-            <h2 className="text-2xl font-bold text-red-600">
-              Unable to load profile
+            <h2 className="text-2xl font-bold text-[#1E3A5F]">
+              Free
             </h2>
 
-            <p className="mt-3 text-gray-600">
-              Check your session or login again.
-            </p>
+            <div className="mt-6 flex items-end gap-2">
+
+              <span className="text-5xl font-bold text-[#111827]">
+                $0
+              </span>
+
+              <span className="mb-1 text-[#6B7280]">
+                / Forever
+              </span>
+
+            </div>
+
+            <div className="mt-10 space-y-5">
+
+              <div className="flex items-center gap-3">
+                <CheckCircle
+                  size={20}
+                  className="text-green-600"
+                />
+                <span>5 AI Requests / Day</span>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <CheckCircle
+                  size={20}
+                  className="text-green-600"
+                />
+                <span>Profile Analyzer</span>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <CheckCircle
+                  size={20}
+                  className="text-green-600"
+                />
+                <span>Gig SEO Optimizer</span>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <CheckCircle
+                  size={20}
+                  className="text-green-600"
+                />
+                <span>Proposal Generator</span>
+              </div>
+
+            </div>
+
+            <button
+              disabled
+              className="mt-10 w-full cursor-not-allowed rounded-xl bg-slate-200 py-4 font-semibold text-slate-500"
+            >
+              Current Plan
+            </button>
 
           </div>
 
-        )}
+          {/* PRO */}
+
+          <div className="relative overflow-hidden rounded-3xl border-2 border-[#1A56DB] bg-white p-10 shadow-xl">
+
+            <div className="absolute right-6 top-6 rounded-full bg-[#1A56DB] px-4 py-2 text-xs font-bold uppercase tracking-wide text-white">
+              Most Popular
+            </div>
+
+            <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-[#EFF6FF]">
+              <Zap
+                size={30}
+                className="text-[#1A56DB]"
+              />
+            </div>
+
+            <h2 className="mt-6 text-3xl font-bold text-[#1E3A5F]">
+              Pro
+            </h2>
+
+            <div className="mt-6 flex items-end gap-2">
+
+              <span className="text-5xl font-bold text-[#111827]">
+                $9.99
+              </span>
+
+              <span className="mb-1 text-[#6B7280]">
+                / Month
+              </span>
+
+            </div>
+
+            <div className="mt-10 space-y-5">
+
+              <div className="flex items-center gap-3">
+                <CheckCircle
+                  size={20}
+                  className="text-green-600"
+                />
+                <span>Unlimited AI Requests</span>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <CheckCircle
+                  size={20}
+                  className="text-green-600"
+                />
+                <span>Faster AI Responses</span>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <CheckCircle
+                  size={20}
+                  className="text-green-600"
+                />
+                <span>Priority Support</span>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <CheckCircle
+                  size={20}
+                  className="text-green-600"
+                />
+                <span>Future Premium Features</span>
+              </div>
+
+            </div>
+
+            <button
+              onClick={handleUpgrade}
+              disabled={loading}
+              className="mt-10 w-full rounded-xl bg-[#1A56DB] py-4 font-semibold text-white transition duration-300 hover:bg-[#1E3A5F] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <svg
+                    className="h-5 w-5 animate-spin"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                  >
+                    <circle
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                      className="opacity-25"
+                    />
+                    <path
+                      fill="currentColor"
+                      className="opacity-75"
+                      d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                    />
+                  </svg>
+
+                  Redirecting...
+                </span>
+              ) : (
+                "Upgrade to Pro"
+              )}
+            </button>
+
+          </div>
+
+        </div>
 
       </div>
-
     </div>
-  </div>
-);
+  );
 }
 
-export default Profile;
+export default Pricing;

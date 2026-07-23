@@ -59,9 +59,29 @@ function Navbar() {
           </>
         ) : (
           <>
-            <span className="text-white font-semibold">
-              {user.username}
-            </span>
+            <div className="flex items-center gap-2">
+
+  <span className="text-white font-semibold">
+    {user.username}
+  </span>
+
+  {user.plan === "pro" && (
+    <span
+      className="
+      rounded-full
+      bg-green-500
+      px-2
+      py-1
+      text-xs
+      font-bold
+      text-white
+      "
+    >
+      PRO
+    </span>
+  )}
+
+</div>
 
             <button
               onClick={handleLogout}
