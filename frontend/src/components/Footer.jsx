@@ -130,42 +130,47 @@ function Footer() {
 
           </div>
 
-          {/* Connect */}
+        {/* Connect */}
 
-          <div>
+<div>
+  <h3 className="mb-5 text-lg font-semibold">
+    Connect
+  </h3>
 
-            <h3 className="mb-5 text-lg font-semibold">
-              Connect
-            </h3>
+  <div className="flex gap-4">
+    <a
+      href="https://github.com/MuhammadSuleman33/gigora-app"
+      target="_blank"
+      rel="noreferrer"
+      aria-label="Open Gigora GitHub repository"
+      className="rounded-xl bg-gray-800 p-3 transition hover:bg-[#1A56DB]"
+    >
+      GitHub
+    </a>
 
-            <div className="flex gap-4">
+    <a
+      href="https://www.linkedin.com"
+      target="_blank"
+      rel="noreferrer"
+      aria-label="Open LinkedIn"
+      className="rounded-xl bg-gray-800 p-3 transition hover:bg-[#1A56DB]"
+    >
+      LinkedIn
+    </a>
 
-              <a
-                href="#"
-                className="rounded-xl bg-gray-800 p-3 transition hover:bg-[#1A56DB]"
-              >
-              </a>
+    <a
+      href="mailto:contact@mufasadevelopers.com"
+      aria-label="Email Mufasa Developers"
+      className="rounded-xl bg-gray-800 p-3 transition hover:bg-[#1A56DB]"
+    >
+      Email
+    </a>
+  </div>
 
-              <a
-                href="#"
-                className="rounded-xl bg-gray-800 p-3 transition hover:bg-[#1A56DB]"
-              >
-              </a>
-
-              <a
-                href="#"
-                className="rounded-xl bg-gray-800 p-3 transition hover:bg-[#1A56DB]"
-              >
-              </a>
-
-            </div>
-
-            <p className="mt-6 text-sm text-gray-500">
-              Empowering freelancers with AI.
-            </p>
-
-          </div>
-
+  <p className="mt-6 text-sm text-gray-500">
+    Empowering freelancers with AI.
+  </p>
+</div>
         </div>
 
         {/* Bottom */}

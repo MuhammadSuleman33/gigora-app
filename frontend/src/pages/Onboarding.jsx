@@ -7,8 +7,7 @@ function Onboarding() {
   const [platform, setPlatform] = useState("");
   const navigate = useNavigate();
   const [jobDescription, setJobDescription] = useState("");
-const [tone, setTone] = useState("Professional");
-const [length, setLength] = useState("Medium");
+
 
 const [proposal, setProposal] = useState("");
 
