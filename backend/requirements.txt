@@ -12,3 +12,5 @@ python-multipart
 slowapi
 stripe
 httpx
+groq
+ cohere
