@@ -154,20 +154,32 @@ async def validation_exception_handler(
 
 
 
+import os
+
+from fastapi.middleware.cors import CORSMiddleware
+
+frontend_url = os.getenv("FRONTEND_URL", "").strip().rstrip("/")
+
+allowed_origins = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
+
+if frontend_url:
+    allowed_origins.append(frontend_url)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://localhost:62602",
-        "http://192.168.100.113:3000",
-        "http://192.168.100.113:62602",
-    ],
-    allow_origin_regex=r"http://(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+):?\d*",
+    allow_origins=allowed_origins,
+
+    # Allows Vercel preview deployment URLs such as:
+    # https://gigora-xxxxx-suleman5.vercel.app
+    allow_origin_regex=r"https://.*\.vercel\.app",
+
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 
 # -------------------------------------------------
 # Routers
