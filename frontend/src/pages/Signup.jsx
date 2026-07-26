@@ -41,9 +41,16 @@ function Signup() {
           "Account created successfully."
       );
 
-      setTimeout(() => {
-        navigate("/login");
-      }, 1000);
+      // setTimeout(() => {
+      //   navigate("/login");
+      // }, 1000);
+
+    // just for short time 
+setTimeout(() => {
+  localStorage.setItem("showOnboarding", "true");
+  navigate("/onboarding");
+}, 1000);
+
 
     } catch (err) {
       setError(

@@ -15,23 +15,50 @@ function Navbar() {
     navigate("/login");
   };
 
+  const handleFeaturesClick = () => {
+    navigate("/");
+
+    setTimeout(() => {
+      const section = document.getElementById("solutions");
+
+      if (section) {
+        section.scrollIntoView({
+          behavior: "smooth",
+        });
+      }
+    }, 100);
+  };
+
   return (
     <nav className="bg-[#1A56DB] h-20 px-16 flex items-center justify-between">
 
       {/* Logo */}
-      <h2 className="text-white text-3xl font-light tracking-wide">
-        GIGORA
-      </h2>
+      <Link to="/">
+        <h2 className="text-white text-3xl font-light tracking-wide cursor-pointer">
+          GIGORA
+        </h2>
+      </Link>
 
       {/* Navigation */}
-      <ul className="flex items-center gap-12">
-        <li className="text-white text-lg font-semibold cursor-pointer hover:opacity-80 transition">
-          Features
+      <ul className="flex items-center gap-6">
+
+        <li>
+          <button
+            onClick={handleFeaturesClick}
+            className="rounded-lg px-4 py-2 text-white font-semibold transition hover:bg-[#1E3A5F]"
+          >
+            Features
+          </button>
         </li>
 
-        <li className="text-white text-lg font-semibold cursor-pointer hover:opacity-80 transition">
-          Pricing
+        <li>
+          <Link to="/pricing">
+            <button className="rounded-lg px-4 py-2 text-white font-semibold transition hover:bg-[#1E3A5F]">
+              Pricing
+            </button>
+          </Link>
         </li>
+
       </ul>
 
       {/* Right Side */}
@@ -39,20 +66,20 @@ function Navbar() {
 
         {!user ? (
           <>
-            <Link to="/Home">
-              <button className="text-white font-semibold px-4 py-2 rounded-lg hover:bg-[#1E3A5F] transition">
+            <Link to="/">
+              <button className="rounded-lg px-4 py-2 font-semibold text-white transition hover:bg-[#1E3A5F]">
                 Get Started
               </button>
             </Link>
 
             <Link to="/login">
-              <button className="text-white font-semibold px-4 py-2 rounded-lg hover:bg-[#1E3A5F] transition">
+              <button className="rounded-lg px-4 py-2 font-semibold text-white transition hover:bg-[#1E3A5F]">
                 Login
               </button>
             </Link>
 
             <Link to="/signup">
-              <button className="text-white font-semibold px-4 py-2 rounded-lg hover:bg-[#1E3A5F] transition">
+              <button className="rounded-lg px-4 py-2 font-semibold text-white transition hover:bg-[#1E3A5F]">
                 Sign Up
               </button>
             </Link>
@@ -60,32 +87,20 @@ function Navbar() {
         ) : (
           <>
             <div className="flex items-center gap-2">
+              <span className="font-semibold text-white">
+                {user.username}
+              </span>
 
-  <span className="text-white font-semibold">
-    {user.username}
-  </span>
-
-  {user.plan === "pro" && (
-    <span
-      className="
-      rounded-full
-      bg-green-500
-      px-2
-      py-1
-      text-xs
-      font-bold
-      text-white
-      "
-    >
-      PRO
-    </span>
-  )}
-
-</div>
+              {user.plan === "pro" && (
+                <span className="rounded-full bg-green-500 px-2 py-1 text-xs font-bold text-white">
+                  PRO
+                </span>
+              )}
+            </div>
 
             <button
               onClick={handleLogout}
-              className="bg-[#1E3A5F] text-white px-5 py-2 rounded-lg font-semibold hover:bg-slate-600 transition"
+              className="rounded-lg bg-[#1E3A5F] px-5 py-2 font-semibold text-white transition hover:bg-slate-600"
             >
               Logout
             </button>
@@ -98,4 +113,4 @@ function Navbar() {
   );
 }
 
-export default Navbar;
+export default Navbar; 

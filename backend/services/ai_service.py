@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 API_KEYS = [
-    os.getenv("GEMINI_API_KEY_1"),
+    os.getenv("GEMINI_API_KEY"),
     os.getenv("GEMINI_API_KEY_2"),
     os.getenv("GEMINI_API_KEY_3"),
 ]
@@ -57,43 +57,6 @@ def generate_with_rotation(prompt):
     )
 
 
-# def analyze_profile(profile_text, current_user):
-#     prompt = f"""
-# Analyze this freelancer profile and return JSON only.
-
-# Profile:
-# {profile_text}
-
-# Return exactly:
-
-# {{
-#   "score": 7,
-#   "strengths": [],
-#   "weaknesses": [],
-#   "suggestions": []
-# }}
-# """
-    
-
-#     response = generate_with_rotation(prompt)
-
-#     save_history(
-#     current_user["id"],
-#     "profile",
-#     {
-#         "profile_text": profile_text
-#     },
-#     result
-# )
-
-#     text = (
-#         response.text
-#         .replace("```json", "")
-#         .replace("```", "")
-#         .strip()
-#     )
-
-#     return json.loads(text)
 def analyze_profile(profile_text, current_user):
     prompt = f"""
 Analyze this freelancer profile and return JSON only.
@@ -146,8 +109,9 @@ def generate_proposal(
     skill,
     platform,
     length,
-    current_user
+    current_user=None
 ):
+
     word_limits = {
         "short": 100,
         "medium": 200,
@@ -156,21 +120,10 @@ def generate_proposal(
 
     words = word_limits.get(length, 200)
 
-    example = """
-Hi,
-
-I reviewed your project carefully.
-As an expert with 3 years of experience,
-I can deliver exactly what you need.
-"""
-
     prompt = f"""
 You are an expert {skill} freelancer on {platform}.
 
 Write a {tone} proposal under {words} words.
-
-Example:
-{example}
 
 Job Post:
 {job_post}
@@ -180,7 +133,11 @@ Return JSON only:
 {{
   "proposal":"text",
   "word_count":180,
-  "key_points":["point1","point2","point3"]
+  "key_points":[
+      "point1",
+      "point2",
+      "point3"
+  ]
 }}
 """
 
@@ -195,20 +152,32 @@ Return JSON only:
 
     result = json.loads(text)
 
-    save_history(
-        current_user["id"],
-        "proposal",
-        {
-            "job_post": job_post,
-            "tone": tone,
-            "skill": skill,
-            "platform": platform,
-            "length": length
-        },
-        result
-    )
 
-    return result
+    proposal = result.get("proposal", "")
+    key_points = result.get("key_points", [])
+
+
+    # Save history only for logged-in users
+    if current_user and current_user.get("id"):
+
+        save_history(
+            current_user["id"],
+            "proposal",
+            {
+                "job_post": job_post,
+                "tone": tone,
+                "skill": skill,
+                "platform": platform,
+                "length": length
+            },
+            result
+        )
+
+
+    return {
+        "proposal": proposal,
+        "key_points": key_points
+    }
 
 def optimize_gig(
     title: str,

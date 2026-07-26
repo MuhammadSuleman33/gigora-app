@@ -81,6 +81,7 @@ def cancel_subscription(
 
 @router.post("/webhook")
 async def stripe_webhook(request: Request):
+    
     payload = await request.body()
     sig_header = request.headers.get("stripe-signature")
 

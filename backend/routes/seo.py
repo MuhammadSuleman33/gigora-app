@@ -1,10 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
-from models.seo import GigRequest
+
 from auth import get_current_user
+from models.seo import GigRequest
+from rate_limiter import limiter
 from services.ai_service import optimize_gig
 from services.usage_service import check_and_increment_usage
 from utils import sanitize_text
-from rate_limiter import limiter
+
 
 router = APIRouter()
 
@@ -16,9 +18,20 @@ def seo(
     data: GigRequest,
     user=Depends(get_current_user)
 ):
-    title = sanitize_text(data.title, "Title")
-    description = sanitize_text(data.description, "Description")
-    category = sanitize_text(data.category, "Category")
+    title = sanitize_text(
+        data.title,
+        "Title"
+    )
+
+    description = sanitize_text(
+        data.description,
+        "Description"
+    )
+
+    category = sanitize_text(
+        data.category,
+        "Category"
+    )
 
     usage = check_and_increment_usage(
         user["id"],

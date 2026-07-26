@@ -4,31 +4,54 @@ import {
   FilePenLine,
   ArrowRight,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { useContext } from "react";
+import { AuthContext } from "../context/AuthContext";
+import toast from "react-hot-toast";
 
 function Solutions() {
+  const navigate = useNavigate();
+  const { user } = useContext(AuthContext);
+
+  const handleNavigation = (path) => {
+    if (!user) {
+      toast.error("Please login first.");
+      navigate("/login");
+      return;
+    }
+
+    navigate(path);
+  };
+
   const solutions = [
     {
       title: "Profile Analyzer",
       description:
         "Receive AI-powered insights to strengthen your freelancer profile and attract more clients.",
       icon: UserCheck,
+      path: "/profile-analyzer",
     },
     {
       title: "Gig SEO",
       description:
         "Optimize your gig title, keywords, tags, and description to improve search rankings.",
       icon: SearchCheck,
+      path: "/gig-seo",
     },
     {
       title: "Proposal Generator",
       description:
         "Generate personalized, high-converting proposals in seconds using AI.",
       icon: FilePenLine,
+      path: "/proposal-generator",
     },
   ];
 
   return (
-    <section className="bg-[#EFF6FF] py-24">
+    <section
+      id="solutions"
+      className="bg-[#EFF6FF] py-24"
+    >
       <div className="mx-auto max-w-7xl px-6">
 
         {/* Heading */}
@@ -60,7 +83,8 @@ function Solutions() {
             return (
               <div
                 key={index}
-                className="group rounded-3xl bg-white p-8 shadow-md transition-all duration-300 hover:-translate-y-3 hover:shadow-2xl"
+                onClick={() => handleNavigation(solution.path)}
+                className="group cursor-pointer rounded-3xl bg-white p-8 shadow-md transition-all duration-300 hover:-translate-y-3 hover:shadow-2xl"
               >
                 {/* Icon */}
 
@@ -91,9 +115,7 @@ function Solutions() {
                   className="mt-8 flex items-center gap-2 font-semibold text-[#1A56DB] transition-all duration-300 hover:gap-3"
                 >
                   Learn More
-
                   <ArrowRight size={18} />
-
                 </button>
 
               </div>

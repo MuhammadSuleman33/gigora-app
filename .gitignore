@@ -25,3 +25,13 @@ yarn-error.log*
 
 .env
 backend/.env
+# Python generated files
+__pycache__/
+*.py[cod]
+
+# Frontend dependencies and cache
+frontend/node_modules/
+frontend/node_modules/.cache/
+
+# Runtime logs
+backend/errors.log

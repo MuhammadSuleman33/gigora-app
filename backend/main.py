@@ -1,43 +1,179 @@
-from fastapi import FastAPI
+import logging
+from logging.handlers import RotatingFileHandler
+
+from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
+from starlette.exceptions import HTTPException as StarletteHTTPException
+
 from auth import router as auth_router
-from routes.proposal import router as proposal_router
-from routes.seo import router as seo_router
-from routes.profile import router as profile_router
-from routes.history import router as history_router
-from routes.user import router as user_router
-from routes.usage import router as usage_router
 from rate_limiter import limiter
 from routes import payment
+from routes.history import router as history_router
+from routes.profile import router as profile_router
+from routes.proposal import router as proposal_router
+from routes.seo import router as seo_router
+from routes.usage import router as usage_router
+from routes.user import router as user_router
+from logger_config import logger
+
+# -------------------------------------------------
+# Error logging
+# -------------------------------------------------
+
+logger = logging.getLogger("gigora")
+logger.setLevel(logging.ERROR)
+
+if not logger.handlers:
+    error_file_handler = RotatingFileHandler(
+        "errors.log",
+        maxBytes=1_000_000,
+        backupCount=3,
+        encoding="utf-8"
+    )
+
+    error_formatter = logging.Formatter(
+        "%(asctime)s | %(levelname)s | %(name)s | %(message)s"
+    )
+
+    error_file_handler.setFormatter(error_formatter)
+    logger.addHandler(error_file_handler)
 
 
+# -------------------------------------------------
+# FastAPI application
+# -------------------------------------------------
 
-app = FastAPI()
-app.include_router(payment.router)
+app = FastAPI(
+    title="Gigora API",
+    version="1.0.0"
+)
+
+
+# -------------------------------------------------
+# SlowAPI configuration
+# -------------------------------------------------
+
 app.state.limiter = limiter
 app.add_middleware(SlowAPIMiddleware)
 
 
 @app.exception_handler(RateLimitExceeded)
-async def rate_limit_exceeded_handler(request, exc):
+async def rate_limit_exceeded_handler(
+    request: Request,
+    exc: RateLimitExceeded
+):
     return JSONResponse(
         status_code=429,
-        content={"detail": "Too many requests. Please wait a minute and try again."},
+        content={
+            "detail": (
+                "Too many requests. "
+                "Please wait a minute and try again."
+            )
+        }
     )
+
+
+# -------------------------------------------------
+# Unexpected error logging
+# -------------------------------------------------
+
+# @app.exception_handler(Exception)
+# async def global_exception_handler(
+#     request: Request,
+#     exc: Exception
+# ):
+#     logger.exception(
+#         "Unhandled error | method=%s | path=%s | error=%s",
+#         request.method,
+#         request.url.path,
+#         str(exc)
+#     )
+
+#     return JSONResponse(
+#         status_code=500,
+#         content={
+#             "detail": "An unexpected server error occurred."
+#         }
+#     )
+
+from fastapi import Request
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(
+    request: Request,
+    exc: Exception
+):
+    logger.exception(
+        "Unhandled Exception | %s %s",
+        request.method,
+        request.url.path
+    )
+
+    return JSONResponse(
+        status_code=500,
+        content={
+            "detail": "Internal server error."
+        }
+    )
+
+
+# Keep normal HTTP errors unchanged.
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(
+    request: Request,
+    exc: StarletteHTTPException
+):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail}
+    )
+
+
+# Keep Pydantic validation errors as 422 responses.
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(
+    request: Request,
+    exc: RequestValidationError
+):
+    return JSONResponse(
+        status_code=422,
+        content={
+            "detail": exc.errors()
+        }
+    )
+
+
+# -------------------------------------------------
+# CORS
+# -------------------------------------------------
+
+
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",
+        "http://localhost:62602",
         "http://192.168.100.113:3000",
+        "http://192.168.100.113:62602",
     ],
+    allow_origin_regex=r"http://(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+):?\d*",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# -------------------------------------------------
+# Routers
+# -------------------------------------------------
+
+app.include_router(payment.router)
 
 app.include_router(auth_router)
 

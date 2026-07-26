@@ -33,27 +33,16 @@ function DashboardHome() {
 });
 
 useEffect(() => {
-  const token =
-    localStorage.getItem("gigora_access_token");
+  api.get("/api/history/stats")
+    .then((res) => setStats(res.data))
+    .catch(() => {});
 
-  fetch("http://127.0.0.1:8000/api/history/stats", {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  })
-    .then((res) => res.json())
-    .then((data) => setStats(data));
-
-  fetch("http://127.0.0.1:8000/api/usage/", {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  })
-    .then((res) => res.json())
-    .then((data) => {
-  console.log("Usage API:", data);
-  setUsage(data);
-});
+  api.get("/api/usage/")
+    .then((res) => {
+      console.log("Usage API:", res.data);
+      setUsage(res.data);
+    })
+    .catch(() => {});
 }, []);
 
   useEffect(() => {
@@ -87,26 +76,13 @@ useEffect(() => {
   }, [navigate]);
   const loadDashboard = async () => {
   try {
-    const token = localStorage.getItem("gigora_access_token");
-
     const [statsRes, usageRes] = await Promise.all([
-      fetch("http://127.0.0.1:8000/api/history/stats", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }),
-      fetch("http://127.0.0.1:8000/api/usage/", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }),
+      api.get("/api/history/stats"),
+      api.get("/api/usage/"),
     ]);
 
-    const statsData = await statsRes.json();
-    const usageData = await usageRes.json();
-
-    setStats(statsData);
-    setUsage(usageData);
+    setStats(statsRes.data);
+    setUsage(usageRes.data);
   } catch (err) {
     console.error(err);
   }

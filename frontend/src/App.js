@@ -15,6 +15,8 @@ import DashboardLayout from "./layouts/DashboardLayout";
 import ProposalCompare from "./pages/ProposalCompare";
 import PaymentSuccess from "./pages/PaymentSuccess";
 import PaymentCancel from "./pages/PaymentCancel";
+import Onboarding from "./pages/Onboarding";
+import NotFound from "./pages/NotFound";
 
 
 function App() {
@@ -36,6 +38,8 @@ function App() {
         <Route path="/proposal-compare" element={<ProposalCompare />}/>
         <Route path="/payment-success" element={<PaymentSuccess />}/>
         <Route path="/payment-cancel" element={<PaymentCancel />}/>
+        <Route path="/onboarding" element={<Onboarding />} />
+        <Route path="*" element={<NotFound />} />
 
       </Routes>
     </BrowserRouter>

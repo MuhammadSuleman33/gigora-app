@@ -1,12 +1,24 @@
-// import {
-//   Mail,
-//   ArrowUpRight,
-// } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { useContext } from "react";
+import { AuthContext } from "../context/AuthContext";
+import toast from "react-hot-toast";
 
 function Footer() {
+  const navigate = useNavigate();
+  const { user } = useContext(AuthContext);
+
+  const handleNavigation = (path) => {
+    if (!user) {
+      toast.error("Please login first.");
+      navigate("/login");
+      return;
+    }
+
+    navigate(path);
+  };
+
   return (
     <footer className="bg-[#111827] text-white">
-
       <div className="mx-auto max-w-7xl px-6 py-16">
 
         <div className="grid gap-12 lg:grid-cols-4">
@@ -38,39 +50,39 @@ function Footer() {
             <ul className="space-y-4 text-gray-400">
 
               <li>
-                <a
-                  href="/dashboard/profile"
+                <button
+                  onClick={() => handleNavigation("/profile-analyzer")}
                   className="transition hover:text-white"
                 >
                   Profile Analyzer
-                </a>
+                </button>
               </li>
 
               <li>
-                <a
-                  href="/dashboard/seo"
+                <button
+                  onClick={() => handleNavigation("/gig-seo")}
                   className="transition hover:text-white"
                 >
                   Gig SEO
-                </a>
+                </button>
               </li>
 
               <li>
-                <a
-                  href="/dashboard/proposal"
+                <button
+                  onClick={() => handleNavigation("/proposal-generator")}
                   className="transition hover:text-white"
                 >
                   Proposal Generator
-                </a>
+                </button>
               </li>
 
               <li>
-                <a
-                  href="/pricing"
+                <button
+                  onClick={() => navigate("/pricing")}
                   className="transition hover:text-white"
                 >
                   Pricing
-                </a>
+                </button>
               </li>
 
             </ul>
@@ -88,42 +100,30 @@ function Footer() {
             <ul className="space-y-4 text-gray-400">
 
               <li>
-                <a
-                  href="/"
+                <button
+                  onClick={() => navigate("/")}
                   className="transition hover:text-white"
                 >
                   Home
-                </a>
+                </button>
               </li>
 
               <li>
-                <a
-                  href="#"
-                  className="transition hover:text-white"
-                >
+                <button className="transition hover:text-white">
                   About
-                </a>
+                </button>
               </li>
 
               <li>
-                <a
-                  href="#"
-                  className="transition hover:text-white"
-                >
+                <button className="transition hover:text-white">
                   Contact
-                </a>
+                </button>
               </li>
 
               <li>
-                <a
-                  href="#"
-                  className="flex items-center gap-1 transition hover:text-white"
-                >
+                <button className="transition hover:text-white">
                   Documentation
-
-                  {/* <ArrowUpRight size={15} /> */}
-
-                </a>
+                </button>
               </li>
 
             </ul>
@@ -144,21 +144,18 @@ function Footer() {
                 href="#"
                 className="rounded-xl bg-gray-800 p-3 transition hover:bg-[#1A56DB]"
               >
-                {/* <Github size={20} /> */}
               </a>
 
               <a
                 href="#"
                 className="rounded-xl bg-gray-800 p-3 transition hover:bg-[#1A56DB]"
               >
-               {/* <LinkedinIcon size={18} /> */}
               </a>
 
               <a
                 href="#"
                 className="rounded-xl bg-gray-800 p-3 transition hover:bg-[#1A56DB]"
               >
-                {/* <Mail size={20} /> */}
               </a>
 
             </div>
@@ -182,33 +179,23 @@ function Footer() {
 
           <div className="flex gap-6">
 
-            <a
-              href="#"
-              className="transition hover:text-white"
-            >
+            <button className="transition hover:text-white">
               Privacy
-            </a>
+            </button>
 
-            <a
-              href="#"
-              className="transition hover:text-white"
-            >
+            <button className="transition hover:text-white">
               Terms
-            </a>
+            </button>
 
-            <a
-              href="#"
-              className="transition hover:text-white"
-            >
+            <button className="transition hover:text-white">
               Cookies
-            </a>
+            </button>
 
           </div>
 
         </div>
 
       </div>
-
     </footer>
   );
 }

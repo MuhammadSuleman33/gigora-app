@@ -1,10 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
+
+from auth import get_current_user
 from models.profile import ProfileRequest
+from rate_limiter import limiter
 from services.ai_service import analyze_profile
 from services.usage_service import check_and_increment_usage
-from auth import get_current_user
 from utils import sanitize_text
-from rate_limiter import limiter
+
 
 router = APIRouter()
 
@@ -16,7 +18,10 @@ def profile(
     data: ProfileRequest,
     user=Depends(get_current_user)
 ):
-    profile_text = sanitize_text(data.profile_text, "Profile text")
+    profile_text = sanitize_text(
+        data.profile_text,
+        "Profile text"
+    )
 
     usage = check_and_increment_usage(
         user["id"],

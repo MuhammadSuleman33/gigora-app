@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import Sidebar from "../components/Sidebar";
 import DashboardHome from "../components/DashboardHome";
+import api from "../services/api";
 
 
 function Dashboard() {
@@ -17,26 +18,8 @@ function Dashboard() {
   const loadDashboard = async () => {
 
     try {
-
-      const token =
-        localStorage.getItem(
-          "gigora_access_token"
-        );
-
-
-      const response = await fetch(
-        "http://127.0.0.1:8000/api/usage/",
-        {
-          headers: {
-            Authorization:
-              `Bearer ${token}`,
-          },
-        }
-      );
-
-
-      const data =
-        await response.json();
+      const response = await api.get("/api/usage/");
+      const data = response.data;
 
 
       console.log(

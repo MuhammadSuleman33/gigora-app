@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Header, HTTPException
+from fastapi import APIRouter, Header, HTTPException, Depends
 from schemas.auth import SignupRequest, LoginRequest
 from database import supabase, supabase_admin
 
@@ -11,7 +11,6 @@ router = APIRouter(
 
 from fastapi import Header, HTTPException
 from database import supabase
-
 
 async def get_current_user(
     authorization: str = Header(None)
@@ -56,6 +55,53 @@ async def get_current_user(
             status_code=401,
             detail="Invalid or expired token"
         )
+
+
+from typing import Optional
+
+#  for short time 
+from typing import Optional
+
+
+async def get_optional_user(
+    authorization: str = Header(None)
+):
+
+    print("OPTIONAL AUTH HEADER:", authorization)
+
+    # Guest user
+    if not authorization:
+        return None
+
+
+    if not authorization.startswith("Bearer "):
+        return None
+
+
+    token = authorization.replace("Bearer ", "")
+
+
+    try:
+
+        user_resp = supabase.auth.get_user(token)
+
+        print("OPTIONAL USER RESPONSE:", user_resp)
+
+
+        if not user_resp.user:
+            return None
+
+
+        profile = get_profile_by_user(user_resp.user)
+
+        return profile
+
+
+    except Exception as e:
+
+        print("OPTIONAL AUTH ERROR:", e)
+
+        return None
 
 
 def get_error_message(error, default_status=400):

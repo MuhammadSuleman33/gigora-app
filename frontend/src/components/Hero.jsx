@@ -1,6 +1,20 @@
 import { ArrowRight, PlayCircle, Sparkles } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { useContext } from "react";
+import { AuthContext } from "../context/AuthContext";
 
 function Hero() {
+  const navigate = useNavigate();
+  const { user } = useContext(AuthContext);
+
+  const handleGetStarted = () => {
+    if (user) {
+      navigate("/dashboard");
+    } else {
+      navigate("/signup");
+    }
+  };
+
   return (
     <section className="relative overflow-hidden bg-gradient-to-br from-[#EFF6FF] via-white to-[#EFF6FF]">
       {/* Background Blur */}
@@ -41,15 +55,16 @@ function Hero() {
 
         <div className="mt-12 flex flex-col items-center justify-center gap-5 sm:flex-row">
 
-          <button className="group flex items-center gap-2 rounded-xl bg-[#1A56DB] px-8 py-4 font-semibold text-white shadow-lg transition-all duration-300 hover:-translate-y-1 hover:bg-[#1E3A5F]">
-
-            Get Started Free
+          <button
+            onClick={handleGetStarted}
+            className="group flex items-center gap-2 rounded-xl bg-[#1A56DB] px-8 py-4 font-semibold text-white shadow-lg transition-all duration-300 hover:-translate-y-1 hover:bg-[#1E3A5F]"
+          >
+            {user ? "Go to Dashboard" : "Get Started Free"}
 
             <ArrowRight
               size={18}
               className="transition-transform group-hover:translate-x-1"
             />
-
           </button>
 
           <button className="flex items-center gap-2 rounded-xl border-2 border-[#1A56DB] px-8 py-4 font-semibold text-[#1A56DB] transition-all duration-300 hover:bg-[#1A56DB] hover:text-white">
@@ -67,7 +82,6 @@ function Hero() {
         <div className="mt-20 grid gap-6 md:grid-cols-3">
 
           <div className="rounded-2xl bg-white p-8 shadow-lg">
-
             <h2 className="text-4xl font-bold text-[#1A56DB]">
               10K+
             </h2>
@@ -75,11 +89,9 @@ function Hero() {
             <p className="mt-2 text-[#6B7280]">
               Freelancers Supported
             </p>
-
           </div>
 
           <div className="rounded-2xl bg-white p-8 shadow-lg">
-
             <h2 className="text-4xl font-bold text-[#1A56DB]">
               95%
             </h2>
@@ -87,11 +99,9 @@ function Hero() {
             <p className="mt-2 text-[#6B7280]">
               Proposal Success Rate
             </p>
-
           </div>
 
           <div className="rounded-2xl bg-white p-8 shadow-lg">
-
             <h2 className="text-4xl font-bold text-[#1A56DB]">
               24/7
             </h2>
@@ -99,7 +109,6 @@ function Hero() {
             <p className="mt-2 text-[#6B7280]">
               AI Assistance
             </p>
-
           </div>
 
         </div>
