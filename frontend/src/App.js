@@ -11,7 +11,6 @@ import Usage from "./components/Usage";
 import Pricing from "./pages/Pricing";
 import Profile from "./pages/Profile";
 import { Toaster } from "react-hot-toast";
-import DashboardLayout from "./layouts/DashboardLayout";
 import ProposalCompare from "./pages/ProposalCompare";
 import PaymentSuccess from "./pages/PaymentSuccess";
 import PaymentCancel from "./pages/PaymentCancel";
