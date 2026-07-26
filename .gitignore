@@ -38,3 +38,5 @@ frontend/node_modules/.cache/
 =======
 >>>>>>> aafb34ff (Ignore backend error log)
 backend/errors.log
+
+frontend/build/
