@@ -1,69 +1,99 @@
-from database import supabase
+from typing import Any
+
+from database import supabase_admin
 
 
 def save_history(
-    user_id,
-    tool_name,
-    input_data,
-    output_data
+    user_id: str,
+    tool_name: str,
+    input_data: Any,
+    output_data: Any,
 ):
-    data = {
+    """
+    Save a tool result to the authenticated user's history.
+    """
+    record = {
         "user_id": user_id,
         "tool_name": tool_name,
         "input_data": input_data,
-        "output_data": output_data
+        "output_data": output_data,
     }
 
-    return (
-        supabase.table("history")
-        .insert(data)
+    response = (
+        supabase_admin
+        .table("history")
+        .insert(record)
         .execute()
     )
 
+    return response.data
 
-def get_user_history(user_id):
-    return (
-        supabase.table("history")
+
+def get_user_history(
+    user_id: str,
+    limit: int = 20,
+):
+    """
+    Return the latest history records for one user.
+    """
+    response = (
+        supabase_admin
+        .table("history")
         .select("*")
         .eq("user_id", user_id)
         .order("created_at", desc=True)
-        .limit(20)
+        .limit(limit)
         .execute()
     )
 
-def delete_history(
-    history_id,
-    user_id
+    return {
+        "success": True,
+        "data": response.data or [],
+    }
+
+
+def delete_user_history(
+    history_id: int,
+    user_id: str,
 ):
-    return (
-        supabase.table("history")
+    """
+    Delete a history record only when it belongs to the given user.
+    """
+    response = (
+        supabase_admin
+        .table("history")
         .delete()
         .eq("id", history_id)
         .eq("user_id", user_id)
         .execute()
     )
 
-def get_history_stats(user_id):
-    records = (
-        supabase.table("history")
+    return response.data
+
+
+def get_history_stats(user_id: str):
+    """
+    Count history records by supported tool name.
+    """
+    response = (
+        supabase_admin
+        .table("history")
         .select("tool_name")
         .eq("user_id", user_id)
         .execute()
     )
 
-    history = records.data
-
     stats = {
         "profile": 0,
         "proposal": 0,
-        "seo": 0
+        "seo": 0,
+        "compare": 0,
     }
 
-    for item in history:
-        tool = item["tool_name"]
+    for item in response.data or []:
+        tool_name = item.get("tool_name")
 
-        if tool in stats:
-            stats[tool] += 1
+        if tool_name in stats:
+            stats[tool_name] += 1
 
     return stats
-

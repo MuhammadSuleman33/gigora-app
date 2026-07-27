@@ -19,6 +19,7 @@ from routes.seo import router as seo_router
 from routes.usage import router as usage_router
 from routes.user import router as user_router
 from logger_config import logger
+from routes import history
 
 # -------------------------------------------------
 # Error logging
@@ -207,10 +208,12 @@ app.include_router(
     tags=["Profile"]
 )
 
+
+
 app.include_router(
-    history_router,
+    history.router,
     prefix="/api/history",
-    tags=["History"]
+    tags=["History"],
 )
 
 app.include_router(
