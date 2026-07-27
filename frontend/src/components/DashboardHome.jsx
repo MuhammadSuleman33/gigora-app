@@ -243,12 +243,12 @@ function DashboardHome() {
     <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-slate-50">
       <div className="mx-auto w-full max-w-7xl px-3 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
         {/* Welcome */}
-        <section className="relative w-full overflow-hidden rounded-2xl bg-gradient-to-br from-[#1554D1] via-[#174DB7] to-[#102F78] px-4 py-15 text-white shadow-lg sm:rounded-3xl sm:p-8">
+        <section className="relative w-full overflow-hidden rounded-2xl bg-gradient-to-br from-[#1554D1] via-[#174DB7] to-[#102F78] px-4 py-11 text-white shadow-lg sm:rounded-3xl sm:p-8">
           <div className="absolute -right-12 -top-12 h-32 w-32 rounded-full bg-white/10" />
           <div className="absolute -bottom-16 -left-10 h-36 w-36 rounded-full bg-white/5" />
 
           <div className="relative">
-            <div className="inline-flex max-w-full items-center gap-2 rounded-full bg-white/15 px-3 py-2.5 text-[11px] font-semibold ring-1 ring-white/20 sm:text-xs">
+            <div className="inline-flex max-w-full items-center gap-2 mt-5 rounded-full bg-white/15 px-3 py-2.5 text-[11px] font-semibold ring-1 ring-white/20 sm:text-xs">
               <Sparkles size={14} className="shrink-0" />
               <span className="truncate">AI Freelancer Workspace</span>
             </div>
