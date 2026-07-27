@@ -248,7 +248,7 @@ function DashboardHome() {
           <div className="absolute -bottom-16 -left-10 h-36 w-36 rounded-full bg-white/5" />
 
           <div className="relative">
-            <div className="inline-flex max-w-full items-center gap-2 rounded-full bg-white/15 px-3 py-5.5 text-[11px] font-semibold ring-1 ring-white/20 sm:text-xs">
+            <div className="inline-flex max-w-full items-center gap-2 rounded-full bg-white/15 px-3 py-9.5 text-[11px] font-semibold ring-1 ring-white/20 sm:text-xs">
               <Sparkles size={14} className="shrink-0" />
               <span className="truncate">AI Freelancer Workspace</span>
             </div>
