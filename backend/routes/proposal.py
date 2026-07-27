@@ -13,7 +13,7 @@ from utils import sanitize_text
 router = APIRouter()
 
 
-@router.post("/")
+@router.post("")
 @limiter.limit("20/minute")
 def proposal(
     request: Request,
@@ -60,21 +60,32 @@ def proposal(
                 detail="Daily limit reached. Upgrade to Pro."
             )
 
-    result = generate_proposal(
-        job_post,
-        tone,
-        skill,
-        platform,
-        length,
-        user if user else {}
-    )
+    try:
+        result = generate_proposal(
+            job_post,
+            tone,
+            skill,
+            platform,
+            length,
+            user if user else {}
+        )
 
-    return {
-        "success": True,
-        "data": result,
-        "usage": usage
-    }
+        return {
+            "success": True,
+            "data": result,
+            "usage": usage
+        }
 
+    except HTTPException:
+        raise
+
+    except Exception as e:
+        print("Proposal generation error:", str(e))
+
+        raise HTTPException(
+            status_code=500,
+            detail="Proposal generation failed. Please try again."
+        )
 
 @router.post("/compare")
 @limiter.limit("20/minute")
@@ -112,14 +123,26 @@ def compare_proposals(
             detail="Daily limit reached. Upgrade to Pro."
         )
 
-    result = compare_and_pick_best(
+    try:
+        result = compare_and_pick_best(
         job_post=job_post,
         tone=tone,
         skill=skill
     )
 
-    return {
+        return {
         "success": True,
         "data": result,
         "usage": usage
     }
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+        print("AI Compare error:", str(e))
+
+    raise HTTPException(
+        status_code=500,
+        detail="AI comparison failed. Please try again."
+    )
