@@ -22,46 +22,81 @@ function Signup() {
       [event.target.name]: event.target.value,
     });
   };
+const handleSubmit = async (event) => {
+  event.preventDefault();
 
-  const handleSubmit = async (event) => {
-    event.preventDefault();
+  setError("");
+  setSuccess("");
+  setLoading(true);
 
-    setError("");
-    setSuccess("");
-    setLoading(true);
+  try {
+    const response = await api.post(
+      "/api/auth/signup",
+      {
+        name: formData.name.trim(),
+        email: formData.email.trim().toLowerCase(),
+        password: formData.password,
+      }
+    );
 
-    try {
-      const response = await api.post(
-        "/api/auth/signup",
-        formData
+    const {
+      message,
+      access_token,
+      requires_email_confirmation,
+      user,
+    } = response.data;
+
+    setSuccess(
+      message || "Account created successfully."
+    );
+
+    if (access_token && user) {
+      localStorage.setItem(
+        "gigora_access_token",
+        access_token
       );
 
-      setSuccess(
-        response.data.message ||
-          "Account created successfully."
+      localStorage.setItem(
+        "gigora_user",
+        JSON.stringify(user)
       );
 
-      // setTimeout(() => {
-      //   navigate("/login");
-      // }, 1000);
-
-    // just for short time 
-setTimeout(() => {
-  localStorage.setItem("showOnboarding", "true");
-  navigate("/onboarding");
-}, 1000);
-
-
-    } catch (err) {
-      setError(
-        err.response?.data?.detail ||
-          "Unable to create account. Please try again."
+      localStorage.setItem(
+        "showOnboarding",
+        "true"
       );
-    } finally {
-      setLoading(false);
+
+      setTimeout(() => {
+        navigate("/onboarding");
+      }, 1000);
+
+      return;
     }
-  };
 
+    if (requires_email_confirmation) {
+      setSuccess(
+        "Account created. Please verify your email, then log in."
+      );
+
+      setTimeout(() => {
+        navigate("/login");
+      }, 1800);
+    }
+  } catch (err) {
+    console.error(
+      "Signup error:",
+      err.response?.status,
+      err.response?.data || err.message
+    );
+
+    setError(
+      err.response?.data?.detail ||
+        "Unable to create account. Please try again."
+    );
+  } finally {
+    setLoading(false);
+  }
+};
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center px-6 py-10">
 

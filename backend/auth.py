@@ -7,15 +7,9 @@ router = APIRouter(
     tags=["Authentication"]
 )
 
-
-
-from fastapi import Header, HTTPException
-from database import supabase
-
 async def get_current_user(
     authorization: str = Header(None)
 ):
-    print("AUTH HEADER:", authorization)
 
     if not authorization:
         raise HTTPException(
@@ -32,7 +26,6 @@ async def get_current_user(
     token = authorization.replace("Bearer ", "")
 
     try:
-        print("TOKEN:", token)
 
         user_resp = supabase.auth.get_user(token)
         print("USER RESPONSE:", user_resp)
@@ -55,54 +48,6 @@ async def get_current_user(
             status_code=401,
             detail="Invalid or expired token"
         )
-
-
-from typing import Optional
-
-#  for short time 
-from typing import Optional
-
-
-async def get_optional_user(
-    authorization: str = Header(None)
-):
-
-    print("OPTIONAL AUTH HEADER:", authorization)
-
-    # Guest user
-    if not authorization:
-        return None
-
-
-    if not authorization.startswith("Bearer "):
-        return None
-
-
-    token = authorization.replace("Bearer ", "")
-
-
-    try:
-
-        user_resp = supabase.auth.get_user(token)
-
-        print("OPTIONAL USER RESPONSE:", user_resp)
-
-
-        if not user_resp.user:
-            return None
-
-
-        profile = get_profile_by_user(user_resp.user)
-
-        return profile
-
-
-    except Exception as e:
-
-        print("OPTIONAL AUTH ERROR:", e)
-
-        return None
-
 
 def get_error_message(error, default_status=400):
     error_text = str(error).lower()
@@ -198,49 +143,132 @@ def get_profile_by_user(auth_user):
 
     return default_profile
 
+def email_already_registered(email: str) -> bool:
+    """
+    Check whether an email already exists in Supabase Auth.
+    This must only run with the service-role client.
+    """
+    normalized_email = email.strip().lower()
+
+    page = 1
+    per_page = 1000
+
+    while True:
+        users_response = supabase_admin.auth.admin.list_users(
+            page=page,
+            per_page=per_page
+        )
+
+        # Supabase versions may return a list directly
+        # or expose users through a .users property.
+        users = getattr(
+            users_response,
+            "users",
+            users_response
+        ) or []
+
+        for existing_user in users:
+            existing_email = getattr(
+                existing_user,
+                "email",
+                None
+            )
+
+            if (
+                existing_email
+                and existing_email.strip().lower()
+                == normalized_email
+            ):
+                return True
+
+        if len(users) < per_page:
+            break
+
+        page += 1
+
+    return False
+
 
 @router.post("/signup")
-
 def signup(user: SignupRequest):
-    
+    normalized_email = user.email.strip().lower()
+    normalized_name = user.name.strip()
+
     try:
+        # Prevent Supabase's obfuscated duplicate-user response
+        # from being treated as a successful signup.
+        if email_already_registered(normalized_email):
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    "This email is already registered. "
+                    "Please log in or use another email."
+                )
+            )
+
         response = supabase.auth.sign_up(
             {
-                "email": user.email,
+                "email": normalized_email,
                 "password": user.password,
                 "options": {
                     "data": {
-                        "name": user.name,
+                        "name": normalized_name,
                         "plan": "free",
                     }
                 },
             }
         )
 
-        user_id = response.user.id
+        if not response.user:
+            raise HTTPException(
+                status_code=400,
+                detail="Unable to create your account."
+            )
 
-        client = supabase_admin or supabase
-        client.table("user").upsert(
-            {
-                "id": user_id,
-                "name": user.name,
-                "email": user.email,
-                "plan": "free",
-            }
-        ).execute()
+        user_id = str(response.user.id)
+
+        profile_response = (
+            supabase_admin
+            .table("user")
+            .insert(
+                {
+                    "id": user_id,
+                    "name": normalized_name,
+                    "email": normalized_email,
+                    "plan": "free",
+                }
+            )
+            .execute()
+        )
+
+        if not profile_response.data:
+            raise HTTPException(
+                status_code=500,
+                detail="Account created, but profile setup failed."
+            )
+
+        access_token = None
+
+        if response.session:
+            access_token = response.session.access_token
 
         return {
-            "message": "User registered successfully",
+            "message": "Account created successfully.",
+            "access_token": access_token,
+            "requires_email_confirmation": response.session is None,
             "user": {
                 "id": user_id,
-                "name": user.name,
-                "email": user.email,
+                "name": normalized_name,
+                "email": normalized_email,
                 "plan": "free",
             },
         }
 
-    except Exception as e:
-        get_error_message(e)
+    except HTTPException:
+        raise
+
+    except Exception as error:
+        get_error_message(error)
 
 
 @router.post("/login")
@@ -268,14 +296,11 @@ def login(user: LoginRequest):
 
 @router.get("/me")
 def me(authorization: str | None = Header(default=None)):
-    print("AUTH HEADER:", authorization)
 
     token = get_bearer_token(authorization)
-    print("TOKEN:", token)
 
     try:
         auth_response = supabase.auth.get_user(token)
-        print("AUTH RESPONSE:", auth_response)
 
         profile = get_profile_by_user(auth_response.user)
 
