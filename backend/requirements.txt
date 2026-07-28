@@ -14,7 +14,7 @@ stripe
 httpx
 cohere
 groq
-
+together 
 
 
 

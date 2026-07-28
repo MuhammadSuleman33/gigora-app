@@ -42,38 +42,10 @@ const handleSubmit = async (event) => {
     const {
       message,
       access_token,
-      requires_email_confirmation,
       user,
     } = response.data;
 
-    setSuccess(
-      message || "Account created successfully."
-    );
-
-    if (access_token && user) {
-      localStorage.setItem(
-        "gigora_access_token",
-        access_token
-      );
-
-      localStorage.setItem(
-        "gigora_user",
-        JSON.stringify(user)
-      );
-
-      localStorage.setItem(
-        "showOnboarding",
-        "true"
-      );
-
-      setTimeout(() => {
-        navigate("/onboarding");
-      }, 1000);
-
-      return;
-    }
-
-    if (requires_email_confirmation) {
+    if (!access_token || !user) {
       setSuccess(
         "Account created. Please verify your email, then log in."
       );
@@ -81,7 +53,33 @@ const handleSubmit = async (event) => {
       setTimeout(() => {
         navigate("/login");
       }, 1800);
+
+      return;
     }
+
+    localStorage.setItem(
+      "gigora_access_token",
+      access_token
+    );
+
+    localStorage.setItem(
+      "gigora_user",
+      JSON.stringify(user)
+    );
+
+    localStorage.setItem(
+      "showOnboarding",
+      "true"
+    );
+
+    setSuccess(
+      message || "Account created successfully."
+    );
+
+    setTimeout(() => {
+      navigate("/onboarding");
+    }, 1000);
+
   } catch (err) {
     console.error(
       "Signup error:",

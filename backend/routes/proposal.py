@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 
-from auth import get_current_user, get_optional_user
+from auth import get_current_user
 from models.proposal import ProposalRequest
 from rate_limiter import limiter
 from services.ai_compare import compare_and_pick_best
@@ -18,47 +18,43 @@ router = APIRouter()
 def proposal(
     request: Request,
     data: ProposalRequest,
-    user=Depends(get_optional_user)
+    user=Depends(get_current_user),
 ):
     job_post = sanitize_text(
         data.job_post,
-        "Job post"
+        "Job post",
     )
 
     tone = sanitize_text(
         data.tone,
-        "Tone"
+        "Tone",
     )
 
     skill = sanitize_text(
         data.skill,
-        "Skill"
+        "Skill",
     )
 
     platform = sanitize_text(
         data.platform,
-        "Platform"
+        "Platform",
     )
 
     length = sanitize_text(
         data.length,
-        "Length"
+        "Length",
     )
 
-    usage = None
+    usage = check_and_increment_usage(
+        user["id"],
+        user["plan"],
+    )
 
-    # Only authenticated users have usage tracking.
-    if user:
-        usage = check_and_increment_usage(
-            user["id"],
-            user["plan"]
+    if not usage["allowed"]:
+        raise HTTPException(
+            status_code=429,
+            detail="Daily limit reached. Upgrade to Pro.",
         )
-
-        if not usage["allowed"]:
-            raise HTTPException(
-                status_code=429,
-                detail="Daily limit reached. Upgrade to Pro."
-            )
 
     try:
         result = generate_proposal(
@@ -67,82 +63,94 @@ def proposal(
             skill,
             platform,
             length,
-            user if user else {}
+            user,
         )
 
         return {
             "success": True,
             "data": result,
-            "usage": usage
+            "usage": usage,
         }
 
     except HTTPException:
         raise
 
-    except Exception as e:
-        print("Proposal generation error:", str(e))
+    except Exception as error:
+        print(
+            "Proposal generation error:",
+            str(error),
+        )
 
         raise HTTPException(
             status_code=500,
-            detail="Proposal generation failed. Please try again."
+            detail=(
+                "Proposal generation failed. "
+                "Please try again."
+            ),
         )
+
 
 @router.post("/compare")
 @limiter.limit("20/minute")
 def compare_proposals(
     request: Request,
     data: ProposalRequest,
-    user=Depends(get_current_user)
+    user=Depends(get_current_user),
 ):
     job_post = sanitize_text(
         data.job_post,
-        "Job post"
+        "Job post",
     )
 
     tone = sanitize_text(
         data.tone,
-        "Tone"
+        "Tone",
     )
 
     skill = sanitize_text(
         data.skill,
-        "Skill"
+        "Skill",
     )
 
-    # AI comparison is available only to Pro users.
     require_pro(user)
 
     usage = check_and_increment_usage(
         user["id"],
-        user["plan"]
+        user["plan"],
     )
 
     if not usage["allowed"]:
         raise HTTPException(
             status_code=429,
-            detail="Daily limit reached. Upgrade to Pro."
+            detail="Daily limit reached. Upgrade to Pro.",
         )
 
     try:
         result = compare_and_pick_best(
-        job_post=job_post,
-        tone=tone,
-        skill=skill
-    )
+            job_post=job_post,
+            tone=tone,
+            skill=skill,
+        )
 
         return {
-        "success": True,
-        "data": result,
-        "usage": usage
-    }
+            "success": True,
+            "data": result,
+            "usage": usage,
+        }
 
     except HTTPException:
         raise
 
-    except Exception as e:
-        print("AI Compare error:", str(e))
+    except Exception as error:
+        print(
+            "AI Compare error:",
+            str(error),
+        )
 
-    raise HTTPException(
-        status_code=500,
-        detail="AI comparison failed. Please try again."
-    )
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "AI comparison failed. "
+                "Please try again."
+            ),
+        )

@@ -3,11 +3,11 @@ import logging
 import os
 import re
 import time
-from typing import Any
+from typing import Any, Callable
 
-import cohere
 from dotenv import load_dotenv
 from google import genai
+from google.genai import types
 from groq import Groq
 
 
@@ -20,8 +20,36 @@ logger = logging.getLogger("gigora")
 # SETTINGS
 # ======================================
 
-MODEL_TIMEOUT_SECONDS = 10
-MAX_PROPOSAL_WORDS = 500
+# Individual SDK request timeout
+MODEL_REQUEST_TIMEOUT_SECONDS = 30
+
+# Overall time allowed for all models
+GLOBAL_TIMEOUT_SECONDS = 35
+
+# Provider-specific output token limits.
+# Gemini may use part of its output budget for internal reasoning.
+# Groq uses a smaller limit because the requested proposal
+# is only 120-180 words.
+GEMINI_MAX_OUTPUT_TOKENS = 1600
+GROQ_MAX_OUTPUT_TOKENS = 500
+
+
+# ======================================
+# MODEL NAMES
+# ======================================
+
+# These can be overridden through .env
+GEMINI_MODEL = os.getenv(
+    "GEMINI_MODEL",
+    "gemini-3.6-flash"
+)
+
+GROQ_MODEL = os.getenv(
+    "GROQ_MODEL",
+    "llama-3.3-70b-versatile"
+)
+
+
 
 
 # ======================================
@@ -30,20 +58,26 @@ MAX_PROPOSAL_WORDS = 500
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-COHERE_API_KEY = os.getenv("COHERE_API_KEY")
 
 
-def require_api_key(value: str | None, key_name: str) -> str:
-    if not value:
+def require_api_key(
+    value: str | None,
+    key_name: str
+) -> str:
+    """
+    Validate that an API key exists.
+    """
+
+    if not value or not value.strip():
         raise RuntimeError(
             f"{key_name} is missing from the environment."
         )
 
-    return value
+    return value.strip()
 
 
 # ======================================
-# CLIENTS WITH REQUEST TIMEOUTS
+# CLIENTS
 # ======================================
 
 gemini_client = genai.Client(
@@ -51,29 +85,22 @@ gemini_client = genai.Client(
         GEMINI_API_KEY,
         "GEMINI_API_KEY"
     ),
-    http_options={
-        # Google Gen AI timeout uses milliseconds.
-        "timeout": MODEL_TIMEOUT_SECONDS * 1000
-    }
+    http_options=types.HttpOptions(
+        # Gemini timeout is measured in milliseconds.
+        timeout=MODEL_REQUEST_TIMEOUT_SECONDS * 1000
+    )
 )
+
 
 groq_client = Groq(
     api_key=require_api_key(
         GROQ_API_KEY,
         "GROQ_API_KEY"
     ),
-    timeout=float(MODEL_TIMEOUT_SECONDS),
-
-    # Prevent automatic retries from extending the timeout.
-    max_retries=0
-)
-
-cohere_client = cohere.ClientV2(
-    api_key=require_api_key(
-        COHERE_API_KEY,
-        "COHERE_API_KEY"
+    timeout=float(
+        MODEL_REQUEST_TIMEOUT_SECONDS
     ),
-    timeout=float(MODEL_TIMEOUT_SECONDS)
+    max_retries=1
 )
 
 
@@ -83,15 +110,31 @@ cohere_client = cohere.ClientV2(
 
 def success_result(
     model: str,
-    text: str,
+    text: str | None,
     start_time: float
 ) -> dict[str, Any]:
-    cleaned_text = (text or "").strip()
+    """
+    Create a standard successful model result.
+    """
+
+    cleaned_text = str(text or "").strip()
 
     if not cleaned_text:
         return failure_result(
             model=model,
             error="The model returned an empty response.",
+            start_time=start_time
+        )
+
+    word_count = len(cleaned_text.split())
+
+    if word_count < 60:
+        return failure_result(
+            model=model,
+            error=(
+                "The model returned an incomplete proposal "
+                f"containing only {word_count} words."
+            ),
             start_time=start_time
         )
 
@@ -111,6 +154,10 @@ def failure_result(
     error: str,
     start_time: float | None = None
 ) -> dict[str, Any]:
+    """
+    Create a standard failed model result.
+    """
+
     speed_ms = 0
 
     if start_time is not None:
@@ -118,10 +165,16 @@ def failure_result(
             (time.time() - start_time) * 1000
         )
 
+    cleaned_error = (
+        str(error).strip()
+        or "Unknown AI model error."
+    )
+
     logger.error(
-        "AI model failed | model=%s | error=%s",
+        "AI model failed | model=%s | speed_ms=%s | error=%s",
         model,
-        error
+        speed_ms,
+        cleaned_error
     )
 
     return {
@@ -130,108 +183,133 @@ def failure_result(
         "speed_ms": speed_ms,
         "success": False,
         "score": 0,
-        "error": error
+        "error": cleaned_error
     }
+
+
+def format_exception(exc: Exception) -> str:
+    """
+    Include the exception class so logs show whether
+    the issue is a timeout, authentication error,
+    rate limit, invalid model, or another API error.
+    """
+
+    return f"{type(exc).__name__}: {exc}"
 
 
 # ======================================
 # GEMINI
 # ======================================
 
-def call_gemini(prompt: str) -> dict[str, Any]:
-    model_name = "Gemini 3.5 Flash"
-    start = time.time()
+def extract_gemini_text(response: Any) -> str:
+    """
+    Safely extract text from a Gemini response.
+    """
 
     try:
-        response = gemini_client.models.generate_content(
-            model="gemini-3.5-flash",
-            contents=prompt
+        direct_text = getattr(
+            response,
+            "text",
+            None
         )
 
-        return success_result(
-            model=model_name,
-            text=response.text,
-            start_time=start
-        )
+        if direct_text:
+            return str(direct_text).strip()
 
     except Exception as exc:
-        return failure_result(
-            model=model_name,
-            error=str(exc),
-            start_time=start
+        logger.warning(
+            "Unable to read Gemini response.text | error=%s",
+            format_exception(exc)
         )
 
+    output_parts: list[str] = []
 
-# ======================================
-# GROQ
-# ======================================
+    candidates = getattr(
+        response,
+        "candidates",
+        None
+    ) or []
 
-def call_groq(prompt: str) -> dict[str, Any]:
-    model_name = "Llama 3 (Groq)"
+    for candidate in candidates:
+        content = getattr(
+            candidate,
+            "content",
+            None
+        )
+
+        parts = getattr(
+            content,
+            "parts",
+            None
+        ) or []
+
+        for part in parts:
+            part_text = getattr(
+                part,
+                "text",
+                None
+            )
+
+            if part_text:
+                output_parts.append(
+                    str(part_text)
+                )
+
+    return "\n".join(output_parts).strip()
+
+
+def call_gemini(
+    prompt: str
+) -> dict[str, Any]:
+    model_name = "Gemini 3.6 Flash"
     start = time.time()
 
     try:
         response = (
-            groq_client
-            .chat
-            .completions
-            .create(
-                model="llama-3.3-70b-versatile",
-                messages=[
-                    {
-                        "role": "user",
-                        "content": prompt
-                    }
-                ],
-                max_tokens=500
+            gemini_client
+            .models
+            .generate_content(
+                model=GEMINI_MODEL,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    max_output_tokens=GEMINI_MAX_OUTPUT_TOKENS
+                )
             )
         )
 
-        text = response.choices[0].message.content
-
-        return success_result(
-            model=model_name,
-            text=text,
-            start_time=start
+        output_text = extract_gemini_text(
+            response
         )
 
-    except Exception as exc:
-        return failure_result(
-            model=model_name,
-            error=str(exc),
-            start_time=start
+        finish_reason = None
+
+        candidates = getattr(
+            response,
+            "candidates",
+            None
+        ) or []
+
+        if candidates:
+            finish_reason = getattr(
+                candidates[0],
+                "finish_reason",
+                None
+            )
+
+        word_count = len(
+            output_text.split()
         )
 
-
-# ======================================
-# COHERE
-# ======================================
-
-def call_cohere(prompt: str) -> dict[str, Any]:
-    model_name = "Command A+"
-    start = time.time()
-
-    try:
-        response = cohere_client.chat(
-            model="command-a-plus-05-2026",
-            messages=[
-                {
-                    "role": "user",
-                    "content": prompt
-                }
-            ],
-            max_tokens=500
-        )
-
-        output_parts = []
-
-        for item in response.message.content or []:
-            item_text = getattr(item, "text", None)
-
-            if item_text:
-                output_parts.append(item_text)
-
-        output_text = "".join(output_parts)
+        if word_count < 60:
+            return failure_result(
+                model=model_name,
+                error=(
+                    "Gemini returned an incomplete response. "
+                    f"Words: {word_count}, "
+                    f"finish_reason: {finish_reason}"
+                ),
+                start_time=start
+            )
 
         return success_result(
             model=model_name,
@@ -242,7 +320,65 @@ def call_cohere(prompt: str) -> dict[str, Any]:
     except Exception as exc:
         return failure_result(
             model=model_name,
-            error=str(exc),
+            error=format_exception(exc),
+            start_time=start
+        )
+
+
+# ======================================
+# GROQ
+# ======================================
+
+def call_groq(
+    prompt: str
+) -> dict[str, Any]:
+    model_name = "Llama 3.3 (Groq)"
+    start = time.time()
+
+    try:
+        response = (
+            groq_client
+            .chat
+            .completions
+            .create(
+                model=GROQ_MODEL,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ],
+                temperature=0.5,
+                max_tokens=GROQ_MAX_OUTPUT_TOKENS
+            )
+        )
+
+        if not response.choices:
+            return failure_result(
+                model=model_name,
+                error=(
+                    "Groq returned no completion choices."
+                ),
+                start_time=start
+            )
+
+        text = (
+            response
+            .choices[0]
+            .message
+            .content
+        )
+
+        return success_result(
+            model=model_name,
+            text=text,
+            start_time=start
+        )
+
+    except Exception as exc:
+        return failure_result(
+            model=model_name,
+            error=format_exception(exc),
             start_time=start
         )
 
@@ -251,7 +387,9 @@ def call_cohere(prompt: str) -> dict[str, Any]:
 # SCORING
 # ======================================
 
-def normalize_words(text: str) -> set[str]:
+def normalize_words(
+    text: str
+) -> set[str]:
     return set(
         re.findall(
             r"\b[a-zA-Z0-9+#.]{3,}\b",
@@ -278,6 +416,7 @@ def score_proposal(
         return 0
 
     score = 0
+
     proposal_lower = proposal.lower()
     words = proposal.split()
     word_count = len(words)
@@ -288,10 +427,13 @@ def score_proposal(
 
     if 120 <= word_count <= 180:
         score += 25
+
     elif 90 <= word_count < 120:
         score += 18
+
     elif 181 <= word_count <= 220:
         score += 15
+
     elif 60 <= word_count < 90:
         score += 10
 
@@ -305,7 +447,9 @@ def score_proposal(
         if len(word) > 4
     }
 
-    proposal_keywords = normalize_words(proposal)
+    proposal_keywords = normalize_words(
+        proposal
+    )
 
     matched_keywords = (
         job_keywords & proposal_keywords
@@ -404,10 +548,14 @@ def build_prompt(
     tone: str,
     skill: str
 ) -> str:
-    return f"""
-You are a Top Rated {skill} freelancer on Upwork.
+    cleaned_job_post = job_post.strip()
+    cleaned_tone = tone.strip() or "professional"
+    cleaned_skill = skill.strip() or "software developer"
 
-Write a proposal using a {tone} tone.
+    return f"""
+You are a Top Rated {cleaned_skill} freelancer on Upwork.
+
+Write a proposal using a {cleaned_tone} tone.
 
 The proposal must sound like it was written by a real professional
 freelancer, not by an AI.
@@ -418,7 +566,11 @@ Rules:
 - Start with a friendly greeting.
 - Mention the client's specific problem.
 - Explain briefly how you would solve it.
-- Mention relevant experience naturally.
+- Mention relevant experience only when it is supported by the information provided.
+- Never invent clients, projects, percentages, years of experience,
+  certifications, statistics, or achievements.
+- If verified experience is not provided, focus on the technical approach
+  without claiming a previous client project.
 - Never exaggerate or make false claims.
 - Avoid generic phrases such as:
   "I am the best candidate"
@@ -430,38 +582,26 @@ Rules:
 - Do not use bullet points.
 - Return only the proposal text.
 
-Example Proposal 1:
+Example style:
 
 Hi,
 
-I recently completed a similar React dashboard project where I built
-reusable components, optimized API calls, and improved loading
-performance. After reading your requirements, I believe a clean and
-scalable solution would work best for your application.
+Your project requires a responsive React dashboard that communicates
+reliably with a FastAPI backend. I would structure the interface with
+reusable components, implement clear loading and error states, and keep
+API integration organized through a dedicated service layer.
 
-I'll build responsive components, keep the code organized, and ensure
-everything integrates smoothly with your backend.
+The dashboard would be optimized for desktop and mobile screens, while
+state management and data fetching would be designed to avoid unnecessary
+requests and re-renders. I would also keep the code modular so future
+charts, filters, and reporting features can be added cleanly.
 
-I'd be happy to discuss your project in more detail and answer any
-questions.
-
-Example Proposal 2:
-
-Hello,
-
-Your project caught my attention because it closely matches work I've
-done before. I focus on writing clean, maintainable code and delivering
-solutions that are easy to scale.
-
-Instead of using a one-size-fits-all approach, I'll tailor the
-implementation specifically to your project requirements and keep you
-updated throughout development.
-
-Let's discuss your goals and how I can help.
+I would be happy to review your API structure and dashboard requirements
+before confirming the implementation plan. Let's discuss the details.
 
 Job Post:
 
-{job_post}
+{cleaned_job_post}
 """.strip()
 
 
@@ -474,16 +614,30 @@ def compare_and_pick_best(
     tone: str,
     skill: str
 ) -> dict[str, Any]:
+    """
+    Run all configured models concurrently, score successful
+    proposals, and return the best result.
+    """
+
+    cleaned_job_post = job_post.strip()
+
+    if not cleaned_job_post:
+        raise ValueError(
+            "The job post cannot be empty."
+        )
+
     prompt = build_prompt(
-        job_post=job_post,
+        job_post=cleaned_job_post,
         tone=tone,
         skill=skill
     )
 
-    model_functions = {
-        "Gemini 3.5 Flash": call_gemini,
-        "Llama 3 (Groq)": call_groq,
-        "Command A+": call_cohere,
+    model_functions: dict[
+        str,
+        Callable[[str], dict[str, Any]]
+    ] = {
+        "Gemini 3.6 Flash": call_gemini,
+        "Llama 3.3 (Groq)": call_groq,
     }
 
     executor = concurrent.futures.ThreadPoolExecutor(
@@ -491,34 +645,38 @@ def compare_and_pick_best(
     )
 
     future_to_model = {
-        executor.submit(model_function, prompt): model_name
+        executor.submit(
+            model_function,
+            prompt
+        ): model_name
         for model_name, model_function
         in model_functions.items()
     }
 
-    completed_results: list[dict[str, Any]] = []
+    completed_results: list[
+        dict[str, Any]
+    ] = []
 
     try:
         done, not_done = concurrent.futures.wait(
             future_to_model,
-            timeout=MODEL_TIMEOUT_SECONDS
+            timeout=GLOBAL_TIMEOUT_SECONDS
         )
 
-        # Process completed requests
+        # Process completed model calls
         for future in done:
             model_name = future_to_model[future]
 
             try:
                 result = future.result()
 
-                # Score only successful responses
                 if (
                     result.get("success") is True
                     and result.get("text", "").strip()
                 ):
                     result["score"] = score_proposal(
                         proposal=result["text"],
-                        job_post=job_post
+                        job_post=cleaned_job_post
                     )
 
                     logger.info(
@@ -532,26 +690,30 @@ def compare_and_pick_best(
                         result.get("speed_ms", 0),
                         len(result["text"].split())
                     )
+
                 else:
                     result["success"] = False
                     result["score"] = 0
 
                     if not result.get("error"):
                         result["error"] = (
-                            "The model did not return a valid proposal."
+                            "The model did not return "
+                            "a valid proposal."
                         )
 
-                completed_results.append(result)
+                completed_results.append(
+                    result
+                )
 
             except Exception as exc:
                 completed_results.append(
                     failure_result(
                         model=model_name,
-                        error=str(exc)
+                        error=format_exception(exc)
                     )
                 )
 
-        # Mark requests that exceeded the global timeout
+        # Mark unfinished requests as timed out
         for future in not_done:
             model_name = future_to_model[future]
 
@@ -561,23 +723,22 @@ def compare_and_pick_best(
                 failure_result(
                     model=model_name,
                     error=(
-                        f"Model exceeded the "
-                        f"{MODEL_TIMEOUT_SECONDS}-second timeout."
+                        "Model exceeded the global "
+                        f"{GLOBAL_TIMEOUT_SECONDS}-second "
+                        "timeout."
                     )
                 )
             )
 
     finally:
-        # Do not wait for timed-out background requests
         executor.shutdown(
             wait=False,
             cancel_futures=True
         )
 
     model_order = [
-        "Gemini 3.5 Flash",
-        "Llama 3 (Groq)",
-        "Command A+",
+        "Gemini 3.6 Flash",
+        "Llama 3.3 (Groq)",
     ]
 
     completed_results.sort(
@@ -588,7 +749,6 @@ def compare_and_pick_best(
         )
     )
 
-    # Only successful models belong in all_results
     successful_results = [
         result
         for result in completed_results
@@ -598,7 +758,6 @@ def compare_and_pick_best(
         )
     ]
 
-    # Sort successful proposals by score
     successful_results.sort(
         key=lambda item: (
             item.get("score", 0),
@@ -607,7 +766,6 @@ def compare_and_pick_best(
         reverse=True
     )
 
-    # Only failed models belong here
     failed_models = [
         {
             "model": result.get(
@@ -627,14 +785,16 @@ def compare_and_pick_best(
         if result.get("success") is not True
     ]
 
-    # Summary containing every model
     comparison = [
         {
             "model": result.get(
                 "model",
                 "Unknown model"
             ),
-            "score": result.get("score", 0),
+            "score": result.get(
+                "score",
+                0
+            ),
             "speed_ms": result.get(
                 "speed_ms",
                 0
@@ -642,6 +802,9 @@ def compare_and_pick_best(
             "success": result.get(
                 "success",
                 False
+            ),
+            "error": result.get(
+                "error"
             ),
         }
         for result in completed_results
@@ -653,11 +816,7 @@ def compare_and_pick_best(
             "best_score": 0,
             "best_proposal": "",
             "comparison": comparison,
-
-            # Important: failed models are no longer
-            # returned inside all_results
             "all_results": [],
-
             "failed_models": failed_models,
             "message": (
                 "All AI services failed or exceeded "
@@ -672,13 +831,10 @@ def compare_and_pick_best(
         "best_score": best["score"],
         "best_proposal": best["text"],
         "comparison": comparison,
-
-        # Contains successful proposals only
         "all_results": successful_results,
-
-        # Contains failed models only
         "failed_models": failed_models,
     }
+
 
 # ======================================
 # LOCAL TEST
@@ -687,10 +843,36 @@ def compare_and_pick_best(
 if __name__ == "__main__":
     from pprint import pprint
 
+    test_prompt = build_prompt(
+        job_post=(
+            "Need a React developer to build a responsive "
+            "analytics dashboard connected to a FastAPI "
+            "backend."
+        ),
+        tone="professional",
+        skill="React Developer"
+    )
+
+    print("\n================================")
+    print("Testing Gemini")
+    print("================================")
+    pprint(call_gemini(test_prompt))
+
+    print("\n================================")
+    print("Testing Groq")
+    print("================================")
+    pprint(call_groq(test_prompt))
+
+
+    print("\n================================")
+    print("Testing complete comparison")
+    print("================================")
+
     test_result = compare_and_pick_best(
         job_post=(
             "Need a React developer to build a responsive "
-            "analytics dashboard connected to a FastAPI backend."
+            "analytics dashboard connected to a FastAPI "
+            "backend."
         ),
         tone="professional",
         skill="React Developer"

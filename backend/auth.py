@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Header, HTTPException, Depends
+from fastapi import APIRouter, Header, HTTPException
 from schemas.auth import SignupRequest, LoginRequest
 from database import supabase, supabase_admin
 
@@ -143,10 +143,11 @@ def get_profile_by_user(auth_user):
 
     return default_profile
 
-def email_already_registered(email: str) -> bool:
+
+def auth_email_exists(email: str) -> bool:
     """
     Check whether an email already exists in Supabase Auth.
-    This must only run with the service-role client.
+    This function is internal and is not an API endpoint.
     """
     normalized_email = email.strip().lower()
 
@@ -154,24 +155,18 @@ def email_already_registered(email: str) -> bool:
     per_page = 1000
 
     while True:
-        users_response = supabase_admin.auth.admin.list_users(
+        response = supabase_admin.auth.admin.list_users(
             page=page,
-            per_page=per_page
+            per_page=per_page,
         )
 
-        # Supabase versions may return a list directly
-        # or expose users through a .users property.
-        users = getattr(
-            users_response,
-            "users",
-            users_response
-        ) or []
+        users = getattr(response, "users", response) or []
 
         for existing_user in users:
             existing_email = getattr(
                 existing_user,
                 "email",
-                None
+                None,
             )
 
             if (
@@ -195,15 +190,31 @@ def signup(user: SignupRequest):
     normalized_name = user.name.strip()
 
     try:
-        # Prevent Supabase's obfuscated duplicate-user response
-        # from being treated as a successful signup.
-        if email_already_registered(normalized_email):
+        existing_profile = (
+            supabase_admin
+            .table("user")
+            .select("id")
+            .eq("email", normalized_email)
+            .limit(1)
+            .execute()
+        )
+
+        if existing_profile.data:
             raise HTTPException(
                 status_code=409,
                 detail=(
                     "This email is already registered. "
                     "Please log in or use another email."
-                )
+                ),
+            )
+
+        if auth_email_exists(normalized_email):
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    "This email is already registered. "
+                    "Please log in or use another email."
+                ),
             )
 
         response = supabase.auth.sign_up(
@@ -222,7 +233,7 @@ def signup(user: SignupRequest):
         if not response.user:
             raise HTTPException(
                 status_code=400,
-                detail="Unable to create your account."
+                detail="Unable to create account.",
             )
 
         user_id = str(response.user.id)
@@ -244,17 +255,114 @@ def signup(user: SignupRequest):
         if not profile_response.data:
             raise HTTPException(
                 status_code=500,
-                detail="Account created, but profile setup failed."
+                detail="Account created, but profile setup failed.",
             )
-
-        access_token = None
-
-        if response.session:
-            access_token = response.session.access_token
 
         return {
             "message": "Account created successfully.",
-            "access_token": access_token,
+            "access_token": (
+                response.session.access_token
+                if response.session
+                else None
+            ),
+            "user": {
+                "id": user_id,
+                "name": normalized_name,
+                "email": normalized_email,
+                "plan": "free",
+            },
+        }
+
+    except HTTPException:
+        raise
+
+    except Exception as error:
+        get_error_message(error)@router.post("/signup")
+
+
+def signup(user: SignupRequest):
+    normalized_email = user.email.strip().lower()
+    normalized_name = user.name.strip()
+
+    try:
+        # First check the application profile table.
+        existing_profile = (
+            supabase_admin
+            .table("user")
+            .select("id")
+            .eq("email", normalized_email)
+            .limit(1)
+            .execute()
+        )
+
+        if existing_profile.data:
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    "This email is already registered. "
+                    "Please log in or use another email."
+                ),
+            )
+
+        # Also check Supabase Auth because an Auth account
+        # may exist even when the profile row is missing.
+        if auth_email_exists(normalized_email):
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    "This email is already registered. "
+                    "Please log in or use another email."
+                ),
+            )
+
+        response = supabase.auth.sign_up(
+            {
+                "email": normalized_email,
+                "password": user.password,
+                "options": {
+                    "data": {
+                        "name": normalized_name,
+                        "plan": "free",
+                    }
+                },
+            }
+        )
+
+        if not response.user:
+            raise HTTPException(
+                status_code=400,
+                detail="Unable to create account.",
+            )
+
+        user_id = str(response.user.id)
+
+        profile_response = (
+            supabase_admin
+            .table("user")
+            .insert(
+                {
+                    "id": user_id,
+                    "name": normalized_name,
+                    "email": normalized_email,
+                    "plan": "free",
+                }
+            )
+            .execute()
+        )
+
+        if not profile_response.data:
+            raise HTTPException(
+                status_code=500,
+                detail="Account created, but profile setup failed.",
+            )
+
+        return {
+            "message": "Account created successfully.",
+            "access_token": (
+                response.session.access_token
+                if response.session
+                else None
+            ),
             "requires_email_confirmation": response.session is None,
             "user": {
                 "id": user_id,
