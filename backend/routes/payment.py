@@ -304,13 +304,8 @@ def cancel_subscription(
         "plan": "free",
     }
 
-
 @router.post("/webhook")
 async def stripe_webhook(request: Request):
-    """
-    Verify Stripe's signature, parse the original JSON payload,
-    and upgrade the user after a successful Checkout payment.
-    """
     if not STRIPE_WEBHOOK_SECRET:
         logger.error("STRIPE_WEBHOOK_SECRET is missing.")
 
@@ -329,15 +324,14 @@ async def stripe_webhook(request: Request):
         )
 
     try:
-        # Verify that the request genuinely came from Stripe.
+        # Verify Stripe signature.
         stripe.Webhook.construct_event(
             payload=payload,
             sig_header=signature,
             secret=STRIPE_WEBHOOK_SECRET,
         )
 
-        # Parse the original payload as normal Python dictionaries.
-        # This avoids StripeObject `.get()` errors.
+        # Parse into normal Python dictionaries.
         event = json.loads(payload.decode("utf-8"))
 
     except ValueError as error:
@@ -355,6 +349,8 @@ async def stripe_webhook(request: Request):
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid webhook signature.",
         ) from error
+
+    logger.info("NEW STRIPE WEBHOOK CODE IS RUNNING")
 
     event_type = event.get("type")
     event_id = event.get("id")
@@ -377,8 +373,19 @@ async def stripe_webhook(request: Request):
             "event_type": event_type,
         }
 
-    event_data = event.get("data") or {}
-    session = event_data.get("object") or {}
+    data = event.get("data", {})
+    session = data.get("object", {})
+
+    if not isinstance(session, dict):
+        logger.error(
+            "Stripe session is not a dictionary | type=%s",
+            type(session).__name__,
+        )
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Invalid Stripe session format.",
+        )
 
     session_id = session.get("id")
     payment_status = session.get("payment_status")
@@ -399,6 +406,9 @@ async def stripe_webhook(request: Request):
 
     metadata = session.get("metadata") or {}
 
+    if not isinstance(metadata, dict):
+        metadata = {}
+
     user_id = (
         metadata.get("user_id")
         or session.get("client_reference_id")
@@ -408,7 +418,7 @@ async def stripe_webhook(request: Request):
 
     if not user_id:
         logger.error(
-            "No user ID found in Checkout Session | session_id=%s",
+            "User ID missing from Stripe session | session_id=%s",
             session_id,
         )
 
@@ -419,7 +429,8 @@ async def stripe_webhook(request: Request):
 
     if plan != "pro":
         logger.error(
-            "Invalid Stripe plan | plan=%s | session_id=%s",
+            "Invalid plan in Stripe metadata | "
+            "plan=%s | session_id=%s",
             plan,
             session_id,
         )
@@ -429,9 +440,41 @@ async def stripe_webhook(request: Request):
             detail="Invalid payment plan.",
         )
 
-    upgrade_user_to_pro(
-        user_id=str(user_id),
-        session_id=session_id,
+    try:
+        response = (
+            supabase_admin
+            .table("user")
+            .update({"plan": "pro"})
+            .eq("id", str(user_id))
+            .execute()
+        )
+
+    except Exception as error:
+        logger.exception(
+            "Supabase upgrade failed | user_id=%s",
+            user_id,
+        )
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Unable to upgrade the user account.",
+        ) from error
+
+    if not response.data:
+        logger.error(
+            "No user matched in Supabase | user_id=%s",
+            user_id,
+        )
+
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User account not found.",
+        )
+
+    logger.info(
+        "User upgraded to Pro | user_id=%s | session_id=%s",
+        user_id,
+        session_id,
     )
 
     return {
