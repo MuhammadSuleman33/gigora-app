@@ -218,12 +218,11 @@ def cancel_subscription(
             detail="Unable to change the subscription plan.",
         ) from error
 
-
 @router.post("/webhook")
 async def stripe_webhook(request: Request):
     """
-    Receive Stripe webhook events and upgrade the user after a
-    successfully paid Checkout Session.
+    Receive Stripe webhook events and upgrade the user after
+    a successfully paid Checkout Session.
     """
     if not STRIPE_WEBHOOK_SECRET:
         logger.error("STRIPE_WEBHOOK_SECRET is missing.")
@@ -249,7 +248,12 @@ async def stripe_webhook(request: Request):
             secret=STRIPE_WEBHOOK_SECRET,
         )
 
-        event = stripe_object_to_dict(stripe_event)
+        # Convert Stripe Event and all nested Stripe objects
+        # into normal Python dictionaries.
+        if hasattr(stripe_event, "to_dict_recursive"):
+            event = stripe_event.to_dict_recursive()
+        else:
+            event = dict(stripe_event)
 
     except ValueError as error:
         logger.warning("Invalid Stripe webhook payload.")
@@ -271,12 +275,11 @@ async def stripe_webhook(request: Request):
     event_id = event.get("id")
 
     logger.info(
-        "Stripe webhook received | event_id=%s | event_type=%s",
+        "Stripe event received | id=%s | type=%s",
         event_id,
         event_type,
     )
 
-    # Ignore Stripe events unrelated to completed Checkout Sessions.
     if event_type != "checkout.session.completed":
         return {
             "received": True,
@@ -284,18 +287,15 @@ async def stripe_webhook(request: Request):
             "event_type": event_type,
         }
 
-    event_data = event.get("data") or {}
-    session = event_data.get("object") or {}
-
-    # Extra protection in case the nested object is still a StripeObject.
-    session = stripe_object_to_dict(session)
+    # This is now a normal Python dictionary.
+    session = event["data"]["object"]
 
     session_id = session.get("id")
     payment_status = session.get("payment_status")
 
     if payment_status != "paid":
         logger.warning(
-            "Checkout Session %s completed with payment status %s",
+            "Session %s has payment status %s",
             session_id,
             payment_status,
         )
@@ -307,7 +307,6 @@ async def stripe_webhook(request: Request):
         }
 
     metadata = session.get("metadata") or {}
-    metadata = stripe_object_to_dict(metadata)
 
     user_id = (
         metadata.get("user_id")
@@ -318,7 +317,7 @@ async def stripe_webhook(request: Request):
 
     if not user_id:
         logger.error(
-            "No user ID found in Checkout Session %s",
+            "No user ID found in Stripe Session %s",
             session_id,
         )
 
@@ -327,11 +326,9 @@ async def stripe_webhook(request: Request):
             detail="User ID is missing from Checkout Session.",
         )
 
-    user_id = str(user_id)
-
     if plan != "pro":
         logger.error(
-            "Invalid plan '%s' in Checkout Session %s",
+            "Invalid plan %s in Stripe Session %s",
             plan,
             session_id,
         )
@@ -340,6 +337,8 @@ async def stripe_webhook(request: Request):
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid payment plan.",
         )
+
+    user_id = str(user_id)
 
     try:
         response = (
@@ -384,3 +383,4 @@ async def stripe_webhook(request: Request):
         "user_id": user_id,
         "plan": "pro",
     }
+
