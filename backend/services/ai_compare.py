@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 from google import genai
 from google.genai import types
 from groq import Groq
+import cohere
 
 
 load_dotenv()
@@ -21,10 +22,10 @@ logger = logging.getLogger("gigora")
 # ======================================
 
 # Individual SDK request timeout
-MODEL_REQUEST_TIMEOUT_SECONDS = 30
+MODEL_REQUEST_TIMEOUT_SECONDS = 55
 
 # Overall time allowed for all models
-GLOBAL_TIMEOUT_SECONDS = 35
+GLOBAL_TIMEOUT_SECONDS = 60
 
 # Provider-specific output token limits.
 # Gemini may use part of its output budget for internal reasoning.
@@ -32,6 +33,7 @@ GLOBAL_TIMEOUT_SECONDS = 35
 # is only 120-180 words.
 GEMINI_MAX_OUTPUT_TOKENS = 1600
 GROQ_MAX_OUTPUT_TOKENS = 500
+COHERE_MAX_OUTPUT_TOKENS = 2000
 
 
 # ======================================
@@ -49,7 +51,10 @@ GROQ_MODEL = os.getenv(
     "llama-3.3-70b-versatile"
 )
 
-
+COHERE_MODEL = os.getenv(
+    "COHERE_MODEL",
+    "command-r-08-2024"
+)
 
 
 # ======================================
@@ -58,6 +63,7 @@ GROQ_MODEL = os.getenv(
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+COHERE_API_KEY = os.getenv("COHERE_API_KEY")
 
 
 def require_api_key(
@@ -101,6 +107,15 @@ groq_client = Groq(
         MODEL_REQUEST_TIMEOUT_SECONDS
     ),
     max_retries=1
+)
+
+cohere_client = cohere.ClientV2(
+    api_key=require_api_key(
+        COHERE_API_KEY,
+        "COHERE_API_KEY"
+    ),
+    base_url="https://api.cohere.com",
+    timeout=MODEL_REQUEST_TIMEOUT_SECONDS
 )
 
 
@@ -383,6 +398,85 @@ def call_groq(
         )
 
 
+
+# ======================================
+# COHERE
+# ======================================
+
+def extract_cohere_text(response: Any) -> str:
+    """
+    Safely extract text from a Cohere Chat API v2 response.
+    """
+
+    message = getattr(response, "message", None)
+    content = getattr(message, "content", None) or []
+
+    output_parts: list[str] = []
+
+    for item in content:
+        item_text = getattr(item, "text", None)
+
+        if item_text:
+            output_parts.append(str(item_text))
+
+    return "\n".join(output_parts).strip()
+
+
+def call_cohere(
+    prompt: str
+) -> dict[str, Any]:
+    model_name = f"{COHERE_MODEL} (Cohere)"
+    start = time.time()
+
+    try:
+        response = cohere_client.chat(
+    model=COHERE_MODEL,
+    messages=[
+        {
+            "role": "system",
+            "content": (
+                "Write only the final proposal. "
+                "Do not provide reasoning, analysis, notes, or explanations."
+            )
+        },
+        {
+            "role": "user",
+            "content": prompt
+        }
+    ],
+    temperature=0.4,
+    max_tokens=COHERE_MAX_OUTPUT_TOKENS
+)
+
+        output_text = extract_cohere_text(response)
+        finish_reason = getattr(response, "finish_reason", None)
+        word_count = len(output_text.split())
+
+        if word_count < 60:
+            return failure_result(
+                model=model_name,
+                error=(
+                    "Cohere returned an incomplete response. "
+                    f"Words: {word_count}, "
+                    f"finish_reason: {finish_reason}"
+                ),
+                start_time=start
+            )
+
+        return success_result(
+            model=model_name,
+            text=output_text,
+            start_time=start
+        )
+
+    except Exception as exc:
+        return failure_result(
+            model=model_name,
+            error=format_exception(exc),
+            start_time=start
+        )
+
+
 # ======================================
 # SCORING
 # ======================================
@@ -638,6 +732,7 @@ def compare_and_pick_best(
     ] = {
         "Gemini 3.6 Flash": call_gemini,
         "Llama 3.3 (Groq)": call_groq,
+        "Command R (Cohere)": call_cohere,
     }
 
     executor = concurrent.futures.ThreadPoolExecutor(
@@ -739,6 +834,7 @@ def compare_and_pick_best(
     model_order = [
         "Gemini 3.6 Flash",
         "Llama 3.3 (Groq)",
+        "Command R (Cohere)",
     ]
 
     completed_results.sort(
@@ -853,16 +949,20 @@ if __name__ == "__main__":
         skill="React Developer"
     )
 
-    print("\n================================")
-    print("Testing Gemini")
-    print("================================")
-    pprint(call_gemini(test_prompt))
+    # print("\n================================")
+    # print("Testing Gemini")
+    # print("================================")
+    # pprint(call_gemini(test_prompt))
+
+    # print("\n================================")
+    # print("Testing Groq")
+    # print("================================")
+    # pprint(call_groq(test_prompt))
 
     print("\n================================")
-    print("Testing Groq")
+    print("Testing Cohere")
     print("================================")
-    pprint(call_groq(test_prompt))
-
+    pprint(call_cohere(test_prompt))
 
     print("\n================================")
     print("Testing complete comparison")
