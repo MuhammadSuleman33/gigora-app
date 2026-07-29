@@ -1,6 +1,6 @@
+import json
 import logging
 import os
-import json
 from typing import Any
 
 import stripe
@@ -31,12 +31,22 @@ router = APIRouter(
 )
 
 
+def get_user_id(current_user: Any) -> str | None:
+    """
+    Extract the authenticated user's ID from a dictionary,
+    Pydantic model, or Supabase object.
+    """
+    if isinstance(current_user, dict):
+        user_id = current_user.get("id")
+    else:
+        user_id = getattr(current_user, "id", None)
+
+    return str(user_id) if user_id else None
+
+
 def stripe_object_to_dict(stripe_object: Any) -> dict:
     """
-    Convert a Stripe SDK object into a normal Python dictionary.
-
-    Some Stripe SDK versions do not safely support `.get()` directly
-    on StripeObject instances.
+    Convert a Stripe SDK object into a standard Python dictionary.
     """
     if stripe_object is None:
         return {}
@@ -53,17 +63,54 @@ def stripe_object_to_dict(stripe_object: Any) -> dict:
         return {}
 
 
-def get_user_id(current_user: Any) -> str | None:
+def upgrade_user_to_pro(user_id: str, session_id: str | None = None) -> dict:
     """
-    Safely extract the user ID whether get_current_user returns
-    a dictionary, Pydantic model, or Supabase user object.
-    """
-    if isinstance(current_user, dict):
-        user_id = current_user.get("id")
-    else:
-        user_id = getattr(current_user, "id", None)
+    Update the user's plan in the public user table.
 
-    return str(user_id) if user_id else None
+    This function is safe to call more than once because setting the
+    same plan value repeatedly does not create duplicate subscriptions.
+    """
+    try:
+        response = (
+            supabase_admin
+            .table("user")
+            .update({"plan": "pro"})
+            .eq("id", str(user_id))
+            .execute()
+        )
+
+    except Exception as error:
+        logger.exception(
+            "Supabase plan update failed | user_id=%s | session_id=%s",
+            user_id,
+            session_id,
+        )
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Unable to upgrade the user account.",
+        ) from error
+
+    if not response.data:
+        logger.error(
+            "No Supabase user matched the Stripe user ID | "
+            "user_id=%s | session_id=%s",
+            user_id,
+            session_id,
+        )
+
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User account not found.",
+        )
+
+    logger.info(
+        "User upgraded to Pro | user_id=%s | session_id=%s",
+        user_id,
+        session_id,
+    )
+
+    return response.data[0]
 
 
 @router.post("/create-checkout-session")
@@ -90,7 +137,7 @@ def checkout(current_user=Depends(get_current_user)):
 
     except Exception as error:
         logger.exception(
-            "Stripe checkout session creation failed for user %s",
+            "Stripe Checkout Session creation failed | user_id=%s",
             user_id,
         )
 
@@ -103,10 +150,10 @@ def checkout(current_user=Depends(get_current_user)):
 @router.get("/success")
 def payment_success(session_id: str):
     """
-    Confirm the Stripe redirect.
+    Confirm the Stripe payment and synchronize the user's Pro plan.
 
-    The webhook performs the actual account upgrade. This endpoint
-    only retrieves and verifies the Checkout Session status.
+    The webhook remains the main payment handler. This endpoint also
+    updates Supabase as a fallback when the webhook is delayed.
     """
     session_id = session_id.strip()
 
@@ -128,7 +175,7 @@ def payment_success(session_id: str):
 
     except stripe.error.StripeError as error:
         logger.warning(
-            "Unable to retrieve Stripe session %s: %s",
+            "Unable to retrieve Stripe session | session_id=%s | error=%s",
             session_id,
             error,
         )
@@ -141,15 +188,57 @@ def payment_success(session_id: str):
     payment_status = session.get("payment_status")
     is_paid = payment_status == "paid"
 
+    metadata = session.get("metadata") or {}
+
+    if not isinstance(metadata, dict):
+        metadata = stripe_object_to_dict(metadata)
+
+    user_id = (
+        metadata.get("user_id")
+        or session.get("client_reference_id")
+    )
+
+    plan = str(metadata.get("plan") or "pro").strip().lower()
+
+    updated_user = None
+
+    if is_paid:
+        if not user_id:
+            logger.error(
+                "Paid Stripe session has no user ID | session_id=%s",
+                session_id,
+            )
+
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="User ID is missing from the payment session.",
+            )
+
+        if plan != "pro":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid payment plan.",
+            )
+
+        updated_user = upgrade_user_to_pro(
+            user_id=str(user_id),
+            session_id=session_id,
+        )
+
     return {
         "success": is_paid,
         "message": (
-            "Payment completed successfully."
+            "Payment completed successfully and your account is now Pro."
             if is_paid
             else "Payment has not been completed."
         ),
         "session_id": session.get("id"),
         "payment_status": payment_status,
+        "plan": (
+            updated_user.get("plan", "pro")
+            if updated_user
+            else None
+        ),
     }
 
 
@@ -168,8 +257,7 @@ def cancel_subscription(
     """
     Change the local Gigora plan to Free.
 
-    This does not cancel a recurring Stripe subscription. It only
-    updates the plan stored in Supabase.
+    This does not cancel an active recurring Stripe subscription.
     """
     user_id = get_user_id(current_user)
 
@@ -188,29 +276,9 @@ def cancel_subscription(
             .execute()
         )
 
-        if not response.data:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="User account not found.",
-            )
-
-        logger.info(
-            "User %s changed to the Free plan.",
-            user_id,
-        )
-
-        return {
-            "success": True,
-            "message": "Plan changed to Free successfully.",
-            "plan": "free",
-        }
-
-    except HTTPException:
-        raise
-
     except Exception as error:
         logger.exception(
-            "Failed to downgrade user %s",
+            "Failed to downgrade user | user_id=%s",
             user_id,
         )
 
@@ -219,8 +287,30 @@ def cancel_subscription(
             detail="Unable to change the subscription plan.",
         ) from error
 
+    if not response.data:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User account not found.",
+        )
+
+    logger.info(
+        "User changed to Free plan | user_id=%s",
+        user_id,
+    )
+
+    return {
+        "success": True,
+        "message": "Plan changed to Free successfully.",
+        "plan": "free",
+    }
+
+
 @router.post("/webhook")
 async def stripe_webhook(request: Request):
+    """
+    Verify Stripe's signature, parse the original JSON payload,
+    and upgrade the user after a successful Checkout payment.
+    """
     if not STRIPE_WEBHOOK_SECRET:
         logger.error("STRIPE_WEBHOOK_SECRET is missing.")
 
@@ -239,14 +329,15 @@ async def stripe_webhook(request: Request):
         )
 
     try:
-        # Verify that Stripe sent the webhook.
+        # Verify that the request genuinely came from Stripe.
         stripe.Webhook.construct_event(
             payload=payload,
             sig_header=signature,
             secret=STRIPE_WEBHOOK_SECRET,
         )
 
-        # Parse the original JSON into standard Python dictionaries.
+        # Parse the original payload as normal Python dictionaries.
+        # This avoids StripeObject `.get()` errors.
         event = json.loads(payload.decode("utf-8"))
 
     except ValueError as error:
@@ -274,21 +365,28 @@ async def stripe_webhook(request: Request):
         event_type,
     )
 
-    if event_type != "checkout.session.completed":
+    supported_events = {
+        "checkout.session.completed",
+        "checkout.session.async_payment_succeeded",
+    }
+
+    if event_type not in supported_events:
         return {
             "received": True,
             "handled": False,
             "event_type": event_type,
         }
 
-    session = event["data"]["object"]
+    event_data = event.get("data") or {}
+    session = event_data.get("object") or {}
 
     session_id = session.get("id")
     payment_status = session.get("payment_status")
 
     if payment_status != "paid":
         logger.warning(
-            "Checkout Session %s is not paid. Status: %s",
+            "Checkout Session is not paid | "
+            "session_id=%s | payment_status=%s",
             session_id,
             payment_status,
         )
@@ -310,7 +408,7 @@ async def stripe_webhook(request: Request):
 
     if not user_id:
         logger.error(
-            "No user ID found in Checkout Session %s",
+            "No user ID found in Checkout Session | session_id=%s",
             session_id,
         )
 
@@ -321,7 +419,7 @@ async def stripe_webhook(request: Request):
 
     if plan != "pro":
         logger.error(
-            "Invalid plan '%s' in Checkout Session %s",
+            "Invalid Stripe plan | plan=%s | session_id=%s",
             plan,
             session_id,
         )
@@ -331,48 +429,14 @@ async def stripe_webhook(request: Request):
             detail="Invalid payment plan.",
         )
 
-    user_id = str(user_id)
-
-    try:
-        response = (
-            supabase_admin
-            .table("user")
-            .update({"plan": "pro"})
-            .eq("id", user_id)
-            .execute()
-        )
-
-    except Exception as error:
-        logger.exception(
-            "Supabase upgrade failed for user %s",
-            user_id,
-        )
-
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Unable to upgrade the user account.",
-        ) from error
-
-    if not response.data:
-        logger.error(
-            "No Supabase user matched ID %s",
-            user_id,
-        )
-
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User account not found.",
-        )
-
-    logger.info(
-        "User %s upgraded to Pro through Stripe Session %s",
-        user_id,
-        session_id,
+    upgrade_user_to_pro(
+        user_id=str(user_id),
+        session_id=session_id,
     )
 
     return {
         "received": True,
         "handled": True,
-        "user_id": user_id,
+        "user_id": str(user_id),
         "plan": "pro",
     }
