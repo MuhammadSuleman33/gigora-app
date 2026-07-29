@@ -1,5 +1,6 @@
 import logging
 import os
+from typing import Any
 
 import stripe
 from dotenv import load_dotenv
@@ -14,8 +15,8 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
-STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
-STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
+STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY", "").strip()
+STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "").strip()
 
 if not STRIPE_SECRET_KEY:
     raise RuntimeError("STRIPE_SECRET_KEY is missing.")
@@ -29,8 +30,51 @@ router = APIRouter(
 )
 
 
+def stripe_object_to_dict(stripe_object: Any) -> dict:
+    """
+    Convert a Stripe SDK object into a normal Python dictionary.
+
+    Some Stripe SDK versions do not safely support `.get()` directly
+    on StripeObject instances.
+    """
+    if stripe_object is None:
+        return {}
+
+    if isinstance(stripe_object, dict):
+        return stripe_object
+
+    if hasattr(stripe_object, "to_dict_recursive"):
+        return stripe_object.to_dict_recursive()
+
+    try:
+        return dict(stripe_object)
+    except (TypeError, ValueError):
+        return {}
+
+
+def get_user_id(current_user: Any) -> str | None:
+    """
+    Safely extract the user ID whether get_current_user returns
+    a dictionary, Pydantic model, or Supabase user object.
+    """
+    if isinstance(current_user, dict):
+        user_id = current_user.get("id")
+    else:
+        user_id = getattr(current_user, "id", None)
+
+    return str(user_id) if user_id else None
+
+
 @router.post("/create-checkout-session")
 def checkout(current_user=Depends(get_current_user)):
+    user_id = get_user_id(current_user)
+
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authenticated user ID is missing.",
+        )
+
     try:
         session = create_checkout_session(current_user)
 
@@ -46,7 +90,7 @@ def checkout(current_user=Depends(get_current_user)):
     except Exception as error:
         logger.exception(
             "Stripe checkout session creation failed for user %s",
-            current_user.get("id"),
+            user_id,
         )
 
         raise HTTPException(
@@ -58,18 +102,34 @@ def checkout(current_user=Depends(get_current_user)):
 @router.get("/success")
 def payment_success(session_id: str):
     """
-    This endpoint confirms the redirect only.
+    Confirm the Stripe redirect.
 
-    The user's plan is upgraded by the Stripe webhook,
-    not by this success endpoint.
+    The webhook performs the actual account upgrade. This endpoint
+    only retrieves and verifies the Checkout Session status.
     """
+    session_id = session_id.strip()
+
+    if not session_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Stripe Checkout Session ID is required.",
+        )
+
+    if not session_id.startswith(("cs_test_", "cs_live_")):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid Stripe Checkout Session ID.",
+        )
+
     try:
-        session = stripe.checkout.Session.retrieve(session_id)
+        stripe_session = stripe.checkout.Session.retrieve(session_id)
+        session = stripe_object_to_dict(stripe_session)
 
     except stripe.error.StripeError as error:
-        logger.exception(
-            "Unable to retrieve Stripe session %s",
+        logger.warning(
+            "Unable to retrieve Stripe session %s: %s",
             session_id,
+            error,
         )
 
         raise HTTPException(
@@ -77,15 +137,18 @@ def payment_success(session_id: str):
             detail="Unable to verify the payment session.",
         ) from error
 
+    payment_status = session.get("payment_status")
+    is_paid = payment_status == "paid"
+
     return {
-        "success": session.get("payment_status") == "paid",
+        "success": is_paid,
         "message": (
             "Payment completed successfully."
-            if session.get("payment_status") == "paid"
+            if is_paid
             else "Payment has not been completed."
         ),
         "session_id": session.get("id"),
-        "payment_status": session.get("payment_status"),
+        "payment_status": payment_status,
     }
 
 
@@ -102,16 +165,25 @@ def cancel_subscription(
     current_user=Depends(get_current_user),
 ):
     """
-    This changes the local Gigora plan to free.
+    Change the local Gigora plan to Free.
 
-    It does not cancel an active Stripe subscription.
+    This does not cancel a recurring Stripe subscription. It only
+    updates the plan stored in Supabase.
     """
+    user_id = get_user_id(current_user)
+
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authenticated user ID is missing.",
+        )
+
     try:
         response = (
             supabase_admin
             .table("user")
             .update({"plan": "free"})
-            .eq("id", current_user["id"])
+            .eq("id", user_id)
             .execute()
         )
 
@@ -120,6 +192,11 @@ def cancel_subscription(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="User account not found.",
             )
+
+        logger.info(
+            "User %s changed to the Free plan.",
+            user_id,
+        )
 
         return {
             "success": True,
@@ -133,7 +210,7 @@ def cancel_subscription(
     except Exception as error:
         logger.exception(
             "Failed to downgrade user %s",
-            current_user.get("id"),
+            user_id,
         )
 
         raise HTTPException(
@@ -145,8 +222,8 @@ def cancel_subscription(
 @router.post("/webhook")
 async def stripe_webhook(request: Request):
     """
-    Receive Stripe webhook events and upgrade the user
-    after a successfully paid Checkout Session.
+    Receive Stripe webhook events and upgrade the user after a
+    successfully paid Checkout Session.
     """
     if not STRIPE_WEBHOOK_SECRET:
         logger.error("STRIPE_WEBHOOK_SECRET is missing.")
@@ -166,39 +243,60 @@ async def stripe_webhook(request: Request):
         )
 
     try:
-        event = stripe.Webhook.construct_event(
+        stripe_event = stripe.Webhook.construct_event(
             payload=payload,
             sig_header=signature,
             secret=STRIPE_WEBHOOK_SECRET,
         )
 
+        event = stripe_object_to_dict(stripe_event)
+
     except ValueError as error:
+        logger.warning("Invalid Stripe webhook payload.")
+
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid webhook payload.",
         ) from error
 
     except stripe.error.SignatureVerificationError as error:
+        logger.warning("Invalid Stripe webhook signature.")
+
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid webhook signature.",
         ) from error
 
-    # Ignore events that do not complete Checkout.
-    if event["type"] != "checkout.session.completed":
+    event_type = event.get("type")
+    event_id = event.get("id")
+
+    logger.info(
+        "Stripe webhook received | event_id=%s | event_type=%s",
+        event_id,
+        event_type,
+    )
+
+    # Ignore Stripe events unrelated to completed Checkout Sessions.
+    if event_type != "checkout.session.completed":
         return {
             "received": True,
             "handled": False,
+            "event_type": event_type,
         }
 
-    session = event["data"]["object"]
+    event_data = event.get("data") or {}
+    session = event_data.get("object") or {}
 
+    # Extra protection in case the nested object is still a StripeObject.
+    session = stripe_object_to_dict(session)
+
+    session_id = session.get("id")
     payment_status = session.get("payment_status")
 
     if payment_status != "paid":
         logger.warning(
-            "Checkout Session %s completed but payment status is %s",
-            session.get("id"),
+            "Checkout Session %s completed with payment status %s",
+            session_id,
             payment_status,
         )
 
@@ -209,18 +307,19 @@ async def stripe_webhook(request: Request):
         }
 
     metadata = session.get("metadata") or {}
+    metadata = stripe_object_to_dict(metadata)
 
     user_id = (
         metadata.get("user_id")
         or session.get("client_reference_id")
     )
 
-    plan = metadata.get("plan", "pro").lower()
+    plan = str(metadata.get("plan") or "pro").strip().lower()
 
     if not user_id:
         logger.error(
-            "No user_id found in Checkout Session %s",
-            session.get("id"),
+            "No user ID found in Checkout Session %s",
+            session_id,
         )
 
         raise HTTPException(
@@ -228,11 +327,13 @@ async def stripe_webhook(request: Request):
             detail="User ID is missing from Checkout Session.",
         )
 
+    user_id = str(user_id)
+
     if plan != "pro":
         logger.error(
             "Invalid plan '%s' in Checkout Session %s",
             plan,
-            session.get("id"),
+            session_id,
         )
 
         raise HTTPException(
@@ -274,7 +375,7 @@ async def stripe_webhook(request: Request):
     logger.info(
         "User %s upgraded to Pro through Stripe Session %s",
         user_id,
-        session.get("id"),
+        session_id,
     )
 
     return {
