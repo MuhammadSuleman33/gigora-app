@@ -8,46 +8,58 @@ router = APIRouter(
 )
 
 async def get_current_user(
-    authorization: str = Header(None)
+    authorization: str = Header(None),
 ):
-
     if not authorization:
         raise HTTPException(
             status_code=401,
-            detail="Not logged in"
+            detail="Not logged in",
         )
 
     if not authorization.startswith("Bearer "):
         raise HTTPException(
             status_code=401,
-            detail="Invalid token format"
+            detail="Invalid token format",
         )
 
-    token = authorization.replace("Bearer ", "")
+    token = authorization.removeprefix("Bearer ").strip()
+
+    if not token:
+        raise HTTPException(
+            status_code=401,
+            detail="Token is missing",
+        )
 
     try:
-
         user_resp = supabase.auth.get_user(token)
-        print("USER RESPONSE:", user_resp)
+        auth_user = user_resp.user
 
-        if not user_resp.user:
+        if not auth_user:
             raise HTTPException(
                 status_code=401,
-                detail="Invalid token"
+                detail="Invalid token",
             )
 
-        profile = get_profile_by_user(user_resp.user)
+        profile = get_profile_by_user(auth_user)
+
+        if not profile:
+            raise HTTPException(
+                status_code=404,
+                detail="User profile not found",
+            )
+
         return profile
 
     except HTTPException:
         raise
-    except Exception as e:
-        print("ERROR:", e)
+
+    except Exception as error:
+        logger.exception("Authentication failed")
 
         raise HTTPException(
             status_code=401,
-            detail="Invalid or expired token"
-        )
+            detail="Invalid or expired token",
+        ) from error
 
 def get_error_message(error, default_status=400):
     error_text = str(error).lower()
