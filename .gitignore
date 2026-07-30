@@ -40,3 +40,8 @@ frontend/node_modules/.cache/
 backend/errors.log
 
 frontend/build/
+.env
+backend/.env
+frontend/.env
+.env.local
+.env.production
