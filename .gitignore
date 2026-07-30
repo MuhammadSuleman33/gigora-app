@@ -1,30 +1,44 @@
-# Environment files
-.env
-backend/.env
-frontend/.env
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.js
+
+# testing
+/coverage
+
+# production
+/build
+
+# misc
+.DS_Store
 .env.local
-.env.production
 .env.development.local
 .env.test.local
 .env.production.local
 
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+
+.env
+backend/.env
+<<<<<<< HEAD
 # Python generated files
 __pycache__/
 *.py[cod]
 
-# Frontend dependencies and build
-node_modules/
+# Frontend dependencies and cache
 frontend/node_modules/
 frontend/node_modules/.cache/
-build/
-frontend/build/
-dist/
 
 # Runtime logs
+=======
+>>>>>>> aafb34ff (Ignore backend error log)
 backend/errors.log
 
-# Miscellaneous
-.DS_Store
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+frontend/build/
+
+
