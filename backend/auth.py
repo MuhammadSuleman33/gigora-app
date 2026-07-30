@@ -10,6 +10,8 @@ from fastapi import (
     status,
 )
 
+from pydantic import BaseModel, Field
+
 from database import supabase, supabase_admin
 from rate_limiter import limiter
 from schemas.auth import LoginRequest, SignupRequest
@@ -33,6 +35,17 @@ MAX_EMAIL_LENGTH = 254
 
 SIGNUP_RATE_LIMIT = "3/minute"
 LOGIN_RATE_LIMIT = "5/minute"
+REFRESH_RATE_LIMIT = "10/minute"
+
+
+class RefreshTokenRequest(BaseModel):
+    """Request body used to refresh an expired access token."""
+
+    refresh_token: str = Field(
+        ...,
+        min_length=20,
+        max_length=5000,
+    )
 
 
 # -------------------------------------------------
@@ -447,6 +460,16 @@ def signup(
                 if auth_response.session
                 else None
             ),
+            "refresh_token": (
+                auth_response.session.refresh_token
+                if auth_response.session
+                else None
+            ),
+            "expires_in": (
+                auth_response.session.expires_in
+                if auth_response.session
+                else None
+            ),
             "requires_email_confirmation": (
                 auth_response.session is None
             ),
@@ -495,6 +518,9 @@ def login(
         return {
             "message": "Login successful.",
             "access_token": auth_response.session.access_token,
+            "refresh_token": auth_response.session.refresh_token,
+            "expires_in": auth_response.session.expires_in,
+            "token_type": "bearer",
             "user": profile,
         }
 
@@ -506,6 +532,50 @@ def login(
             error,
             default_status=status.HTTP_401_UNAUTHORIZED,
         )
+
+
+@router.post("/refresh")
+@limiter.limit(REFRESH_RATE_LIMIT)
+def refresh_access_token(
+    request: Request,
+    payload: RefreshTokenRequest,
+):
+    """Exchange a valid refresh token for a new Supabase session."""
+    try:
+        auth_response = supabase.auth.refresh_session(
+            payload.refresh_token
+        )
+
+        if not auth_response.session or not auth_response.user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Unable to refresh session. Please log in again.",
+            )
+
+        profile = get_profile_by_user(auth_response.user)
+
+        return {
+            "message": "Session refreshed successfully.",
+            "access_token": auth_response.session.access_token,
+            "refresh_token": auth_response.session.refresh_token,
+            "expires_in": auth_response.session.expires_in,
+            "token_type": "bearer",
+            "user": profile,
+        }
+
+    except HTTPException:
+        raise
+
+    except Exception as error:
+        logger.warning(
+            "Session refresh rejected | error_type=%s",
+            type(error).__name__,
+        )
+
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Session expired. Please log in again.",
+        ) from error
 
 
 @router.get("/me")

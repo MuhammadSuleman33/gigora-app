@@ -41,30 +41,31 @@ function Login() {
     setLoading(true);
 
     try {
-      const response = await api.post(
-        "/api/auth/login",
-        {
-          email: formData.email
-            .trim()
-            .toLowerCase(),
-          password: formData.password,
-        }
-      );
+      const response = await api.post("/api/auth/login", {
+        email: formData.email.trim().toLowerCase(),
+        password: formData.password,
+      });
 
       const {
         access_token,
+        refresh_token,
         user,
       } = response.data;
 
-      if (!access_token || !user) {
+      if (!access_token || !refresh_token || !user) {
         throw new Error(
-          "The login response did not include the required user information."
+          "The login response did not include the required authentication information."
         );
       }
 
       localStorage.setItem(
         "gigora_access_token",
         access_token
+      );
+
+      localStorage.setItem(
+        "gigora_refresh_token",
+        refresh_token
       );
 
       localStorage.setItem(
@@ -96,15 +97,13 @@ function Login() {
 
   return (
     <div className="grid min-h-screen lg:grid-cols-2">
-
       {/* Left side */}
       <div className="relative hidden overflow-hidden bg-gradient-to-br from-[#1A56DB] to-[#1E3A5F] text-white lg:flex">
-
         <div className="absolute -left-24 -top-24 h-72 w-72 rounded-full bg-white/10 blur-3xl" />
+
         <div className="absolute bottom-0 right-0 h-96 w-96 rounded-full bg-blue-300/10 blur-3xl" />
 
         <div className="relative flex flex-col justify-center px-16">
-
           <div className="inline-flex w-fit items-center gap-2 rounded-full bg-white/10 px-5 py-2 backdrop-blur">
             <Sparkles size={18} />
 
@@ -116,7 +115,7 @@ function Login() {
           <h1 className="mt-8 text-6xl font-extrabold leading-tight">
             Welcome
             <br />
-            Back 👋
+            Back
           </h1>
 
           <p className="mt-8 max-w-lg text-lg leading-8 text-blue-100">
@@ -126,7 +125,6 @@ function Login() {
           </p>
 
           <div className="mt-14 space-y-6">
-
             <div className="flex items-center gap-4">
               <div className="rounded-xl bg-white/10 p-3">
                 <ShieldCheck size={22} />
@@ -174,19 +172,16 @@ function Login() {
                 </p>
               </div>
             </div>
-
           </div>
         </div>
       </div>
 
       {/* Right side */}
       <div className="flex items-center justify-center bg-slate-50 px-6 py-12">
-
         <form
           onSubmit={handleSubmit}
           className="w-full max-w-md rounded-3xl bg-white p-10 shadow-xl"
         >
-
           <div className="text-center">
             <h2 className="text-4xl font-bold text-[#111827]">
               Welcome Back
@@ -290,7 +285,6 @@ function Login() {
               Sign Up
             </Link>
           </p>
-
         </form>
       </div>
     </div>
